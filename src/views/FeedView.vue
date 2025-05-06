@@ -1,17 +1,38 @@
 <template>
   <div class="feed-container">
-    <h1>Your Feed</h1>
-    <div v-if="loading" class="loading">
-      Loading posts...
+    <div class="feed-header">
+      <h1>Feed</h1>
+      <div class="header-actions">
+        <router-link to="/create-post" class="create-post-btn">
+          <i class="fas fa-plus"></i>
+        </router-link>
+        <router-link to="/posts" class="my-posts-btn">
+          <i class="fas fa-user"></i>
+        </router-link>
+        <router-link to="/calendar" class="calendar-btn">
+          <i class="fas fa-calendar"></i>
+        </router-link>
+      </div>
     </div>
+
+    <div v-if="loading" class="loading">
+      <div class="loading-spinner"></div>
+      <p>Loading posts...</p>
+    </div>
+
     <div v-else-if="error" class="error">
       {{ error }}
     </div>
+
     <div v-else-if="!posts || posts.length === 0" class="no-posts">
-      No posts available. Follow some users to see their posts here!
+      <p>No posts available yet.</p>
+      <router-link to="/create-post" class="create-first-post-btn">
+        Create First Post
+      </router-link>
     </div>
+
     <div v-else class="posts">
-      <div v-for="post in posts" :key="post.userId" class="post-card">
+      <div v-for="post in posts" :key="post.id" class="post-card">
         <div class="post-header">
           <div class="post-info">
             <h3>{{ post.title }}</h3>
@@ -19,19 +40,10 @@
           </div>
         </div>
         <div class="post-content">
-          <p>{{ post.content }}</p>
-          <img v-if="post.url" :src="post.url" alt="Post image" class="post-image" />
-        </div>
-        <div class="post-actions">
-          <button class="action-button">
-            <i class="fas fa-heart"></i> Like
-          </button>
-          <button class="action-button">
-            <i class="fas fa-comment"></i> Comment
-          </button>
-          <button class="action-button">
-            <i class="fas fa-share"></i> Share
-          </button>
+          <div v-if="post.url" class="post-image">
+            <img :src="getImageUrl(post.url)" alt="Post image" @error="handleImageError" />
+          </div>
+          <p class="post-text">{{ post.content }}</p>
         </div>
       </div>
     </div>
@@ -39,114 +51,194 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
-import { feedService } from '@/services/feed.service';
-import { useRouter } from 'vue-router';
-import { useAuthStore } from '@/stores/auth';
+import { ref, onMounted } from 'vue'
+import axios from 'axios'
 
 interface Post {
-  title: string;
-  content: string;
-  url: string;
-  userId: string;
-  createdAt: string;
-  updatedAt: string;
+  id: string
+  title: string
+  content: string
+  url?: string
+  userId: string
+  createdAt?: string
+  updatedAt?: string
 }
 
-const router = useRouter();
-const authStore = useAuthStore();
-const posts = ref<Post[]>([]);
-const loading = ref(true);
-const error = ref('');
+const posts = ref<Post[]>([])
+const loading = ref(true)
+const error = ref('')
 
-const formatDate = (dateString: string) => {
+const formatDate = (dateString?: string) => {
+  if (!dateString) return 'N/A'
   return new Date(dateString).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit'
-  });
-};
+  })
+}
 
-const fetchFeed = async () => {
+const getImageUrl = (url?: string) => {
+  if (!url) return ''
+  // The URL from the backend is already complete, so return it as is
+  return url
+}
+
+const handleImageError = (event: Event) => {
+  const img = event.target as HTMLImageElement
+  console.error('Error loading image:', img.src)
+  img.style.display = 'none'
+}
+
+const fetchPosts = async () => {
   try {
-    loading.value = true;
-    error.value = '';
-    const token = authStore.token;
-    console.log('Current auth state:', {
-      isAuthenticated: authStore.isAuthenticated,
-      token: token,
-      localStorageToken: localStorage.getItem('token')
-    });
-
+    const token = localStorage.getItem('token')
     if (!token) {
-      console.error('No token found in auth store');
-      router.push('/login');
-      return;
+      error.value = 'Please log in to view posts'
+      return
     }
 
-    const response = await feedService.getFeed(token);
-    console.log('Feed response:', response);
-
-    // Ensure posts is initialized as an array
-    posts.value = Array.isArray(response) ? response : [];
+    const response = await axios.get('http://localhost:8090/api/v1/post/all', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    console.log('Posts response:', response.data)
+    posts.value = response.data
   } catch (err) {
-    error.value = 'Failed to load feed. Please try again later.';
-    console.error('Error fetching feed:', err);
-    if (err instanceof Error && err.message.includes('authentication')) {
-      router.push('/login');
-    }
+    console.error('Error fetching posts:', err)
+    error.value = 'Failed to load posts'
   } finally {
-    loading.value = false;
+    loading.value = false
   }
-};
+}
 
 onMounted(async () => {
-  console.log('FeedView mounted, auth state:', {
-    isAuthenticated: authStore.isAuthenticated,
-    token: authStore.token,
-    localStorageToken: localStorage.getItem('token')
-  });
-
-  if (!authStore.isAuthenticated) {
-    console.log('Not authenticated, redirecting to login');
-    router.push('/login');
-    return;
-  }
-  await fetchFeed();
-});
+  await fetchPosts()
+})
 </script>
 
 <style scoped>
 .feed-container {
-  max-width: 800px;
+  max-width: 600px;
   margin: 0 auto;
   padding: 20px;
+  background-color: #000;
+  min-height: 100vh;
+  color: #fff;
 }
 
-.loading, .error, .no-posts {
+.feed-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding: 1rem 0;
+  border-bottom: 1px solid #333;
+}
+
+.feed-header h1 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #fff;
+  margin: 0;
+}
+
+.header-actions {
+  display: flex;
+  gap: 1rem;
+}
+
+.create-post-btn,
+.my-posts-btn,
+.calendar-btn {
+  background-color: #fff;
+  color: #000;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  font-size: 1.2rem;
+  transition: transform 0.2s;
+}
+
+.create-post-btn:hover,
+.my-posts-btn:hover,
+.calendar-btn:hover {
+  transform: scale(1.1);
+}
+
+.loading {
   text-align: center;
-  padding: 20px;
-  color: #666;
+  padding: 2rem;
+  color: #fff;
+}
+
+.loading-spinner {
+  border: 3px solid #333;
+  border-top: 3px solid #fff;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 .error {
-  color: #dc3545;
+  color: #ff4444;
+  text-align: center;
+  padding: 1rem;
+  background: rgba(255, 68, 68, 0.1);
+  border-radius: 4px;
+  margin: 1rem 0;
+}
+
+.no-posts {
+  text-align: center;
+  padding: 3rem;
+  background: #111;
+  border-radius: 8px;
+  margin: 2rem 0;
+}
+
+.create-first-post-btn {
+  display: inline-block;
+  margin-top: 1rem;
+  background-color: #fff;
+  color: #000;
+  padding: 0.75rem 1.5rem;
+  border-radius: 20px;
+  text-decoration: none;
+  font-weight: 500;
+  transition: background-color 0.3s;
+}
+
+.create-first-post-btn:hover {
+  background-color: #ddd;
 }
 
 .post-card {
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background: #111;
+  border-radius: 12px;
   margin-bottom: 20px;
-  padding: 15px;
+  overflow: hidden;
 }
 
 .post-header {
   display: flex;
-  align-items: center;
-  margin-bottom: 15px;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 1rem;
+  background: #000;
 }
 
 .post-info {
@@ -156,44 +248,37 @@ onMounted(async () => {
 .post-info h3 {
   margin: 0;
   font-size: 1.1em;
+  color: #fff;
 }
 
 .post-date {
-  color: #666;
-  font-size: 0.9em;
+  color: #888;
+  font-size: 0.8em;
+  display: block;
+  margin-top: 0.3rem;
 }
 
 .post-content {
-  margin-bottom: 15px;
+  padding: 0;
+}
+
+.post-text {
+  margin: 0;
+  padding: 1rem;
+  line-height: 1.6;
+  color: #fff;
 }
 
 .post-image {
-  max-width: 100%;
-  border-radius: 4px;
-  margin-top: 10px;
+  width: 100%;
+  aspect-ratio: 4/3;
+  overflow: hidden;
+  background: #000;
 }
 
-.post-actions {
-  display: flex;
-  gap: 15px;
-  border-top: 1px solid #eee;
-  padding-top: 15px;
-}
-
-.action-button {
-  background: none;
-  border: none;
-  color: #666;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 5px 10px;
-  border-radius: 4px;
-  transition: background-color 0.2s;
-}
-
-.action-button:hover {
-  background-color: #f5f5f5;
+.post-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 </style>
