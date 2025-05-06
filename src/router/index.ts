@@ -1,13 +1,24 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
+import SignupView from '@/views/SignupView.vue'
+import LoginView from '@/views/LoginView.vue'
+import WelcomeView from '@/views/WelcomeView.vue'
+import FeedView from '../views/FeedView.vue'
+import { useAuthStore } from '@/stores/auth'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
       path: '/',
+      name: 'welcome',
+      component: WelcomeView
+    },
+    {
+      path: '/home',
       name: 'home',
       component: HomeView,
+      meta: { requiresAuth: true }
     },
     {
       path: '/about',
@@ -16,8 +27,37 @@ const router = createRouter({
       // this generates a separate chunk (About.[hash].js) for this route
       // which is lazy-loaded when the route is visited.
       component: () => import('../views/AboutView.vue'),
+      meta: { requiresAuth: true }
     },
+    {
+      path: '/signup',
+      name: 'signup',
+      component: SignupView
+    },
+    {
+      path: '/login',
+      name: 'login',
+      component: LoginView
+    },
+    {
+      path: '/feed',
+      name: 'feed',
+      component: FeedView,
+      meta: { requiresAuth: true }
+    }
   ],
 })
+
+// Navigation guard
+router.beforeEach((to, from, next) => {
+  const authStore = useAuthStore();
+
+  if (to.meta.requiresAuth && !authStore.isAuthenticated) {
+    // Redirect to login if trying to access protected route while not authenticated
+    next('/login');
+  } else {
+    next();
+  }
+});
 
 export default router
