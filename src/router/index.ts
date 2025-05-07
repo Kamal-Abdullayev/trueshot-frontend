@@ -7,6 +7,7 @@ import FeedView from '../views/FeedView.vue'
 import CreatePostView from '../views/CreatePostView.vue'
 import PostManagement from '../views/PostManagement.vue'
 import CalendarView from '../views/CalendarView.vue'
+import AdminView from '../views/AdminView.vue'
 import { useAuthStore } from '@/stores/auth'
 
 const router = createRouter({
@@ -65,6 +66,12 @@ const router = createRouter({
       name: 'calendar',
       component: CalendarView,
       meta: { requiresAuth: true }
+    },
+    {
+      path: '/admin',
+      name: 'admin',
+      component: AdminView,
+      meta: { requiresAuth: true, requiresAdmin: true }
     }
   ],
 })
@@ -76,6 +83,9 @@ router.beforeEach((to, from, next) => {
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     // Redirect to login if trying to access protected route while not authenticated
     next('/login');
+  } else if (to.meta.requiresAdmin && !authStore.isAdmin) {
+    // Redirect to home if trying to access admin route while not admin
+    next('/home');
   } else {
     next();
   }

@@ -18,6 +18,11 @@ export const useAuthStore = defineStore('auth', {
       const token = state.token || localStorage.getItem('token');
       console.log('Getting token:', token);
       return token;
+    },
+    isAdmin: (state) => {
+      console.log('Checking admin status. User:', state.user);
+      console.log('User roles:', state.user?.roles);
+      return state.user?.roles === 'ADMIN';
     }
   },
 
@@ -47,6 +52,7 @@ export const useAuthStore = defineStore('auth', {
       try {
         const response = await authService.login(data);
         console.log('Login response received:', response);
+        console.log('User roles from response:', response.user.roles);
 
         if (!response.token) {
           throw new Error('No token received from login');
@@ -59,6 +65,7 @@ export const useAuthStore = defineStore('auth', {
         // Store token in localStorage
         localStorage.setItem('token', response.token);
         console.log('Token stored after login:', response.token);
+        console.log('User stored after login:', this.user);
 
         return response;
       } catch (error) {

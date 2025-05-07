@@ -21,6 +21,7 @@ const logout = async () => {
         <template v-if="authStore.isAuthenticated">
           <router-link to="/feed">Feed</router-link>
           <router-link to="/create-post" class="create-post-btn">Create Post</router-link>
+          <router-link v-if="authStore.isAdmin" to="/admin" class="admin-btn">Admin</router-link>
           <a href="#" @click.prevent="logout">Logout</a>
         </template>
         <template v-else>
@@ -102,6 +103,19 @@ body {
 
 .create-post-btn:hover {
   background-color: #3aa876;
+  color: white !important;
+}
+
+.admin-btn {
+  background-color: #2c3e50;
+  color: white !important;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  transition: background-color 0.3s;
+}
+
+.admin-btn:hover {
+  background-color: #1a252f;
   color: white !important;
 }
 </style>

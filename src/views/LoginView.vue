@@ -38,7 +38,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import axios from 'axios'
 import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
@@ -63,25 +62,19 @@ const login = async () => {
       return
     }
 
-    const response = await axios.post('http://localhost:8090/api/v1/auth/authenticate', {
+    const response = await authStore.login({
       name: username.value,
       password: password.value
-    })
+    });
 
-    console.log('Login response:', response.data)
+    console.log('Login successful, user:', response.user);
+    console.log('User role:', response.user.roles);
 
-    // The response is the JWT token string directly
-    if (response.data) {
-      console.log('Setting token:', response.data)
-      // Update auth store state
-      authStore.token = response.data
-      authStore.isAuthenticated = true
-      localStorage.setItem('token', response.data)
-      console.log('Token set, redirecting to feed...')
-      await router.push('/feed')
+    // Redirect based on role
+    if (response.user.roles === 'ADMIN') {
+      await router.push('/admin');
     } else {
-      console.error('No token in response')
-      error.value = 'Login failed: No token received'
+      await router.push('/feed');
     }
   } catch (err: any) {
     console.error('Login error:', err)
