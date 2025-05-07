@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue';
 import { groupService, type Group } from '@/services/group.service';
 import { useAuthStore } from '@/stores/auth';
+import { notificationService } from '@/services/notification.service';
 
 const authStore = useAuthStore();
 const groupName = ref('');
@@ -9,6 +10,7 @@ const groups = ref<Group[]>([]);
 const error = ref('');
 const success = ref('');
 const isLoading = ref(false);
+const isTriggeringNotifications = ref(false);
 
 const fetchGroups = async () => {
   try {
@@ -43,6 +45,22 @@ const createGroup = async () => {
   }
 };
 
+const triggerDailyChallenge = async () => {
+  try {
+    isTriggeringNotifications.value = true;
+    error.value = '';
+    success.value = '';
+    
+    await notificationService.triggerDailyChallenge();
+    success.value = 'Daily challenge notifications triggered successfully!';
+  } catch (err) {
+    error.value = 'Failed to trigger daily challenge notifications. Please try again.';
+    console.error('Error triggering notifications:', err);
+  } finally {
+    isTriggeringNotifications.value = false;
+  }
+};
+
 onMounted(fetchGroups);
 </script>
 
@@ -50,6 +68,17 @@ onMounted(fetchGroups);
   <div class="admin-container">
     <h1>Admin Dashboard</h1>
     
+    <div class="notification-section">
+      <h2>Daily Challenge Notifications</h2>
+      <button 
+        @click="triggerDailyChallenge" 
+        class="trigger-btn"
+        :disabled="isTriggeringNotifications"
+      >
+        {{ isTriggeringNotifications ? 'Triggering...' : 'Trigger Daily Challenge Notifications' }}
+      </button>
+    </div>
+
     <div class="group-creation-section">
       <h2>Create New Group</h2>
       <div class="form-group">
@@ -99,6 +128,34 @@ onMounted(fetchGroups);
 h1 {
   color: #2c3e50;
   margin-bottom: 2rem;
+}
+
+.notification-section {
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin-bottom: 2rem;
+}
+
+.trigger-btn {
+  background-color: #4a90e2;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.3s;
+}
+
+.trigger-btn:hover {
+  background-color: #357abd;
+}
+
+.trigger-btn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
 }
 
 .group-creation-section {

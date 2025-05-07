@@ -1,36 +1,96 @@
 import axios from 'axios';
-import { useAuthStore } from '@/stores/auth';
+import { API_URL } from '@/config/api';
 
-const API_URL = 'http://localhost:8090/api/v1';
-
-export interface Group {
+interface User {
   id: string;
   name: string;
-  adminUsername: string;
+  roles: string;
 }
 
-const getAuthHeader = () => {
-  const authStore = useAuthStore();
-  return {
-    Authorization: `Bearer ${authStore.getToken}`
-  };
-};
+interface Group {
+  id: string;
+  name: string;
+  admin: User;
+  members: User[];
+}
 
-export const groupService = {
-  async createGroup(name: string): Promise<Group> {
-    const response = await axios.post(
-      `${API_URL}/groups/create?name=${encodeURIComponent(name)}`,
-      {},
-      { headers: getAuthHeader() }
-    );
-    return response.data;
-  },
-
-  async getGroups(): Promise<Group[]> {
-    const response = await axios.get(
-      `${API_URL}/groups`,
-      { headers: getAuthHeader() }
-    );
-    return response.data;
+class GroupService {
+  async getAllGroups() {
+    try {
+      const response = await axios.get<Group[]>(`${API_URL}/api/v1/groups/all`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching groups:', error);
+      throw error;
+    }
   }
-}; 
+
+  // Alias for backward compatibility
+  async getGroups() {
+    return this.getAllGroups();
+  }
+
+  async getGroupById(id: string) {
+    try {
+      const response = await axios.get<Group>(`${API_URL}/api/v1/groups/${id}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching group:', error);
+      throw error;
+    }
+  }
+
+  async createGroup(name: string) {
+    try {
+      const response = await axios.post<Group>(`${API_URL}/api/v1/groups`, { name }, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error creating group:', error);
+      throw error;
+    }
+  }
+
+  async addMemberToGroup(groupId: string, userId: string) {
+    try {
+      const response = await axios.post(`${API_URL}/api/v1/groups/${groupId}/members`, { userId }, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error adding member to group:', error);
+      throw error;
+    }
+  }
+
+  async removeMemberFromGroup(groupId: string, userId: string) {
+    try {
+      const response = await axios.delete(`${API_URL}/api/v1/groups/${groupId}/members/${userId}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error removing member from group:', error);
+      throw error;
+    }
+  }
+}
+
+export const groupService = new GroupService(); 
