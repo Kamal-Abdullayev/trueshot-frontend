@@ -19,7 +19,6 @@
         <div v-for="user in nonFollowingUsers" :key="user.id" class="user-item">
           <div class="user-info">
             <span class="user-name">{{ user.name }}</span>
-            <span class="user-id">ID: {{ user.id }}</span>
           </div>
           <button 
             @click="toggleFollow(user.id)"
@@ -35,7 +34,6 @@
         <div v-for="user in followingUsersList" :key="user.id" class="user-item">
           <div class="user-info">
             <span class="user-name">{{ user.name }}</span>
-            <span class="user-id">ID: {{ user.id }}</span>
           </div>
           <button 
             @click="toggleFollow(user.id)"
@@ -51,7 +49,6 @@
         <div v-for="user in followersList" :key="user.id" class="user-item">
           <div class="user-info">
             <span class="user-name">{{ user.name }}</span>
-            <span class="user-id">ID: {{ user.id }}</span>
           </div>
           <button 
             @click="toggleFollow(user.id)"
