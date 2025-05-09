@@ -107,10 +107,8 @@ const startCamera = async () => {
         }
       })
       isCameraReady.value = true
-      console.log('Camera is ready')
     }
   } catch (err) {
-    console.error('Error accessing camera:', err)
     if (err instanceof DOMException) {
       if (err.name === 'NotAllowedError') {
         alert('Camera access was denied. Please allow camera access and try again.')
@@ -192,7 +190,6 @@ const createPost = async () => {
       router.push('/feed')
     }
   } catch (error) {
-    console.error('Error creating post:', error)
     alert('Failed to create post. Please try again.')
   }
 }

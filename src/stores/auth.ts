@@ -5,7 +5,6 @@ import type { SignupRequest, AuthState, LoginRequest } from '@/types/auth';
 export const useAuthStore = defineStore('auth', {
   state: (): AuthState => {
     const token = localStorage.getItem('token');
-    console.log('Initializing auth store with token:', token);
     return {
       user: null,
       token: token,
@@ -16,7 +15,6 @@ export const useAuthStore = defineStore('auth', {
   getters: {
     getToken: (state) => {
       const token = state.token || localStorage.getItem('token');
-      console.log('Getting token:', token);
       return token;
     }
   },
@@ -31,7 +29,6 @@ export const useAuthStore = defineStore('auth', {
 
         // Store token in localStorage
         localStorage.setItem('token', response.token);
-        console.log('Token stored after signup:', response.token);
 
         return response;
       } catch (error) {
@@ -46,7 +43,6 @@ export const useAuthStore = defineStore('auth', {
     async login(data: LoginRequest) {
       try {
         const response = await authService.login(data);
-        console.log('Login response received:', response);
 
         if (!response.token) {
           throw new Error('No token received from login');
@@ -58,7 +54,6 @@ export const useAuthStore = defineStore('auth', {
 
         // Store token in localStorage
         localStorage.setItem('token', response.token);
-        console.log('Token stored after login:', response.token);
 
         return response;
       } catch (error) {
@@ -75,7 +70,6 @@ export const useAuthStore = defineStore('auth', {
       this.token = null;
       this.isAuthenticated = false;
       localStorage.removeItem('token');
-      console.log('Token removed after logout');
     }
   }
 });

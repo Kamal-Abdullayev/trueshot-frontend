@@ -19,9 +19,32 @@ const logout = async () => {
       </div>
       <div class="nav-links">
         <template v-if="authStore.isAuthenticated">
-          <router-link to="/feed">Feed</router-link>
-          <router-link to="/create-post" class="create-post-btn">Create Post</router-link>
-          <a href="#" @click.prevent="logout">Logout</a>
+        <router-link
+      to="/feed"
+      class="px-2 py-2 rounded-md bg-green-600 text-white font-medium hover:bg-gray-700 transition"
+    >
+      Feed
+    </router-link>
+
+    <router-link
+      to="/create-post"
+      class="px-2 py-2 rounded-md bg-green-600 text-white font-semibold hover:bg-indigo-500 shadow-md transition"
+    >
+      Add Post
+    </router-link>
+
+    <router-link
+      to="/posts"
+      class="px-2 py-2 rounded-md bg-green-600 text-white font-semibold hover:bg-indigo-500 shadow-md transition"
+    >
+      My Posts
+    </router-link>
+    <router-link
+      to="/calendar"
+      class="px-2 py-2 rounded-md bg-green-600 text-white font-semibold hover:bg-indigo-500 shadow-md transition"
+    >
+      Calendar
+    </router-link>
         </template>
         <template v-else>
           <router-link to="/login">Login</router-link>

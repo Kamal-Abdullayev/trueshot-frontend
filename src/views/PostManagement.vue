@@ -147,10 +147,8 @@ const fetchPosts = async () => {
         'Authorization': `Bearer ${token}`
       }
     })
-    console.log('Posts response:', response.data)
     posts.value = response.data
   } catch (err) {
-    console.error('Error fetching posts:', err)
     error.value = 'Failed to load posts. Please try again.'
   } finally {
     loading.value = false
@@ -183,7 +181,6 @@ const updatePost = async () => {
     await fetchPosts()
     showEditModal.value = false
   } catch (err) {
-    console.error('Error updating post:', err)
     error.value = 'Failed to update post. Please try again.'
   }
 }
@@ -206,14 +203,12 @@ const deletePost = async (id: string) => {
 
     await fetchPosts()
   } catch (err) {
-    console.error('Error deleting post:', err)
     error.value = 'Failed to delete post. Please try again.'
   }
 }
 
 const handleImageError = (event: Event) => {
   const img = event.target as HTMLImageElement
-  console.error('Error loading image:', img.src)
   const imageContainer = img.closest('.post-image') as HTMLElement
   if (imageContainer) {
     imageContainer.style.display = 'none'
