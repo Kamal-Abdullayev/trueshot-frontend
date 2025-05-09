@@ -1,5 +1,5 @@
 <template>
-  <div class="text-white bg-black">
+  <div class="text-white bg-black min-h-screen">   
     <!-- Hero Section -->
     <div class="relative min-h-screen flex items-center justify-center text-center px-6">
       <div
