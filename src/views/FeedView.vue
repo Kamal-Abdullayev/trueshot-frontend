@@ -1,49 +1,177 @@
 <template>
   <div class="feed-container">
-    <div class="feed-header">
-      <h1>Feed</h1>
-      <div class="header-actions">
-        <router-link to="/create-post" class="create-post-btn">
-          <i class="fas fa-plus"></i>
-        </router-link>
-        <router-link to="/posts" class="my-posts-btn">
-          <i class="fas fa-user"></i>
-        </router-link>
-        <router-link to="/calendar" class="calendar-btn">
-          <i class="fas fa-calendar"></i>
-        </router-link>
+    <!-- Users section with tabs -->
+    <div class="users-section">
+      <div class="users-tabs">
+        <button 
+          v-for="tab in tabs" 
+          :key="tab.id"
+          @click="activeTab = tab.id"
+          :class="{ active: activeTab === tab.id }"
+          class="tab-btn"
+        >
+          {{ tab.name }}
+        </button>
+      </div>
+
+      <!-- User Suggestions Tab -->
+      <div v-if="activeTab === 'suggestions'" class="users-list">
+        <div v-for="user in nonFollowingUsers" :key="user.id" class="user-item">
+          <div class="user-info">
+            <span class="user-name">{{ user.name }}</span>
+            <span class="user-id">ID: {{ user.id }}</span>
+          </div>
+          <button 
+            @click="toggleFollow(user.id)"
+            class="follow-btn"
+          >
+            Follow
+          </button>
+        </div>
+      </div>
+
+      <!-- Following Tab -->
+      <div v-if="activeTab === 'following'" class="users-list">
+        <div v-for="user in followingUsersList" :key="user.id" class="user-item">
+          <div class="user-info">
+            <span class="user-name">{{ user.name }}</span>
+            <span class="user-id">ID: {{ user.id }}</span>
+          </div>
+          <button 
+            @click="toggleFollow(user.id)"
+            class="follow-btn following"
+          >
+            Unfollow
+          </button>
+        </div>
+      </div>
+
+      <!-- Followers Tab -->
+      <div v-if="activeTab === 'followers'" class="users-list">
+        <div v-for="user in followersList" :key="user.id" class="user-item">
+          <div class="user-info">
+            <span class="user-name">{{ user.name }}</span>
+            <span class="user-id">ID: {{ user.id }}</span>
+          </div>
+          <button 
+            @click="toggleFollow(user.id)"
+            :class="{ 'following': isFollowing(user.id) }"
+            class="follow-btn"
+          >
+            {{ isFollowing(user.id) ? 'Unfollow' : 'Follow' }}
+          </button>
+        </div>
       </div>
     </div>
 
-    <div v-if="loading" class="loading">
-      <div class="loading-spinner"></div>
-      <p>Loading posts...</p>
-    </div>
+    <!-- Feed section -->
+    <div class="feed-section">
+      <div class="feed-header">
+        <h1>Feed</h1>
+      </div>
 
-    <div v-else-if="error" class="error">
-      {{ error }}
-    </div>
+      <div v-if="loading" class="loading">
+        <div class="loading-spinner"></div>
+        <p>Loading posts...</p>
+      </div>
 
-    <div v-else-if="!posts || posts.length === 0" class="no-posts">
-      <p>No posts available yet.</p>
-      <router-link to="/create-post" class="create-first-post-btn">
-        Create First Post
-      </router-link>
-    </div>
+      <div v-else-if="error" class="error">
+        {{ error }}
+      </div>
 
-    <div v-else class="posts">
-      <div v-for="post in posts" :key="post.id" class="post-card">
-        <div class="post-header">
-          <div class="post-info">
-            <h3>{{ post.title }}</h3>
-            <span class="post-date">{{ formatDate(post.createdAt) }}</span>
+      <div v-else-if="!posts || posts.length === 0" class="no-posts">
+        <p>No posts available yet.</p>
+        <router-link to="/create-post" class="create-first-post-btn">
+          Create First Post
+        </router-link>
+      </div>
+
+      <div v-else class="posts">
+        <div v-for="post in posts" :key="post.id" class="post-card">
+          <div class="post-header">
+            <div class="post-info">
+              <h3>{{ post.title }}</h3>
+              <span class="post-date">{{ formatDate(post.createdAt) }}</span>
+            </div>
           </div>
-        </div>
-        <div class="post-content">
-          <div v-if="post.url" class="post-image">
-            <img :src="getImageUrl(post.url)" alt="Post image" @error="handleImageError" />
+          <div class="post-content">
+            <div v-if="post.url" class="post-image">
+              <img :src="getImageUrl(post.url)" alt="Post image" @error="handleImageError" />
+            </div>
+            <p class="post-text">{{ post.content }}</p>
           </div>
-          <p class="post-text">{{ post.content }}</p>
+          <div class="post-comments">
+            <div class="comments-section">
+              <div v-if="post.comments && post.comments.length > 0" class="comments-list">
+                <div v-for="comment in post.comments" :key="comment.id" class="comment">
+                  <div class="comment-header">
+                    <span class="comment-date">{{ formatDate(comment.createdAt) }}</span>
+                  </div>
+                  <div v-if="comment.url" class="comment-image">
+                    <img :src="comment.url" alt="Comment image" @error="handleImageError" />
+                  </div>
+                  <p class="comment-text">{{ comment.content }}</p>
+                </div>
+              </div>
+              <div v-else class="no-comments">
+                <p>No comments yet</p>
+              </div>
+            </div>
+            <form @submit.prevent="submitComment(post.id)" class="comment-form">
+              <div class="comment-input-container">
+                <div class="camera-preview" v-if="capturedImages[post.id]">
+                  <img :src="capturedImages[post.id]" alt="Captured image" />
+                  <button type="button" class="remove-image-btn" @click="removeImage(post.id)">
+                    <i class="fas fa-times"></i>
+                  </button>
+                </div>
+                <div v-else class="camera-button">
+                  <video :ref="el => videoRefs[post.id] = el" class="camera-preview" autoplay playsinline></video>
+                  <canvas :ref="el => canvasRefs[post.id] = el" class="camera-canvas" style="display: none;"></canvas>
+                  <div class="camera-controls">
+                    <button
+                      v-if="!isCameraActive[post.id] && !capturedImages[post.id]"
+                      type="button"
+                      class="camera-btn"
+                      @click="setupCamera(post.id)"
+                    >
+                      <i class="fas fa-camera"></i>
+                      <span class="camera-label">Open Camera</span>
+                    </button>
+
+                    <button
+                      v-if="isCameraActive[post.id] && !capturedImages[post.id]"
+                      type="button"
+                      class="camera-btn"
+                      @click="takePicture(post.id)"
+                    >
+                      <i class="fas fa-camera"></i>
+                      <span class="camera-label">Capture</span>
+                    </button>
+                  </div>
+                </div>
+                <div class="reactions">
+                  <button
+                    v-for="reaction in reactions"
+                    :key="reaction"
+                    type="button"
+                    class="reaction-btn"
+                    :class="{ active: selectedReactions[post.id] === reaction }"
+                    @click="selectReaction(reaction, post.id)"
+                  >
+                    {{ reaction }}
+                  </button>
+                </div>
+              </div>
+              <button
+                type="submit"
+                class="comment-submit-btn"
+                :disabled="!capturedImages[post.id] || !selectedReactions[post.id]"
+              >
+                Post
+              </button>
+            </form>
+          </div>
         </div>
       </div>
     </div>
@@ -51,8 +179,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import axios from 'axios'
+
+interface Comment {
+  id: string
+  postId: string
+  userId: string
+  content: string
+  url: string | null
+  createdAt: string
+}
 
 interface Post {
   id: string
@@ -62,11 +200,41 @@ interface Post {
   userId: string
   createdAt?: string
   updatedAt?: string
+  comments?: Comment[]
 }
 
+interface User {
+  id: string
+  name: string
+  password: string
+  roles: string
+}
+
+const isCameraActive = ref<Record<string, boolean>>({})
 const posts = ref<Post[]>([])
 const loading = ref(true)
 const error = ref('')
+const newComments = ref<Record<string, string>>({})
+const reactions = ['😊', '😂', '😢', '😮', '👍']
+const capturedImages = ref<Record<string, string>>({})
+const selectedReactions = ref<Record<string, string>>({})
+const users = ref<User[]>([])
+const followingUsers = ref<Set<string>>(new Set())
+
+const videoRefs = ref<Record<string, HTMLVideoElement | null>>({})
+const canvasRefs = ref<Record<string, HTMLCanvasElement | null>>({})
+const stream = ref<MediaStream | null>(null)
+
+// Add new refs for tabs and user lists
+const activeTab = ref('suggestions')
+const tabs = [
+  { id: 'suggestions', name: 'Suggestions' },
+  { id: 'following', name: 'Following' },
+  { id: 'followers', name: 'Followers' }
+]
+
+const followingUsersList = ref<User[]>([])
+const followersList = ref<User[]>([])
 
 const formatDate = (dateString?: string) => {
   if (!dateString) return 'N/A'
@@ -87,8 +255,126 @@ const getImageUrl = (url?: string) => {
 
 const handleImageError = (event: Event) => {
   const img = event.target as HTMLImageElement
-  console.error('Error loading image:', img.src)
   img.style.display = 'none'
+}
+
+const fetchComments = async (postId: string) => {
+  try {
+    const token = localStorage.getItem('token')
+    if (!token) return
+
+    const response = await axios.get(`http://localhost:8090/api/v1/comments/post/${postId}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    
+    const post = posts.value.find(p => p.id === postId)
+    if (post) {
+      post.comments = response.data
+    }
+  } catch (err) {
+  }
+}
+
+const handleImageCapture = (event: Event, postId: string) => {
+  const input = event.target as HTMLInputElement
+  if (input.files && input.files[0]) {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      if (e.target?.result) {
+        capturedImages.value[postId] = e.target.result as string
+      }
+    }
+    reader.readAsDataURL(input.files[0])
+  }
+}
+
+const removeImage = (postId: string) => {
+  delete capturedImages.value[postId]
+}
+
+const selectReaction = (reaction: string, postId: string) => {
+  selectedReactions.value[postId] = reaction
+}
+
+const submitComment = async (postId: string) => {
+  try {
+    const token = localStorage.getItem('token')
+    if (!token) {
+      error.value = 'Please log in to comment'
+      return
+    }
+    const imageContent = capturedImages.value[postId].split(',')[1]
+    const content = selectedReactions.value[postId]
+    
+    if (!imageContent || !content) return
+
+    const response = await axios.post(
+      `http://localhost:8090/api/v1/comments`,
+      {
+        postId,
+        content,
+        imageContent
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    )
+
+    // Refresh comments for this post
+    await fetchComments(postId)
+    isCameraActive.value[postId] = false
+    alert('Comment posted successfully!')
+
+    // Clear the form
+    delete capturedImages.value[postId]
+    delete selectedReactions.value[postId]
+  } catch (err) {
+    error.value = 'Failed to post comment'
+  }
+}
+
+const setupCamera = async (postId: string) => {
+  try {
+    const localStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user' },
+      audio: false
+    })
+
+    const video = videoRefs.value[postId]
+    if (video) {
+      video.srcObject = localStream
+      video.play()
+      stream.value = localStream
+      isCameraActive.value[postId] = true
+    }
+  } catch {
+    error.value = 'Could not access camera'
+  }
+}
+
+const takePicture = async (postId: string) => {
+  const video = videoRefs.value[postId]
+  const canvas = canvasRefs.value[postId]
+  if (!video || !canvas) return
+
+  canvas.width = video.videoWidth
+  canvas.height = video.videoHeight
+
+  const context = canvas.getContext('2d')
+  if (!context) return
+
+  context.drawImage(video, 0, 0, canvas.width, canvas.height)
+  const imageData = canvas.toDataURL('image/jpeg')
+  capturedImages.value[postId] = imageData
+
+  if (stream.value) {
+    stream.value.getTracks().forEach(track => track.stop())
+    stream.value = null
+  }
 }
 
 const fetchPosts = async () => {
@@ -104,29 +390,273 @@ const fetchPosts = async () => {
         'Authorization': `Bearer ${token}`
       }
     })
-    console.log('Posts response:', response.data)
     posts.value = response.data
+    
+    // Fetch comments for each post
+    for (const post of posts.value) {
+      await fetchComments(post.id)
+    }
   } catch (err) {
-    console.error('Error fetching posts:', err)
     error.value = 'Failed to load posts'
   } finally {
     loading.value = false
   }
 }
 
+const fetchUsers = async () => {
+  try {
+    const token = localStorage.getItem('token')
+    if (!token) return
+
+    const response = await axios.get('http://localhost:8090/api/v1/auth/users', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    users.value = response.data
+  } catch (err) {
+    error.value = 'Failed to load users'
+  }
+}
+
+const fetchFollowingUsers = async () => {
+  try {
+    const token = localStorage.getItem('token')
+    if (!token) return
+
+    const response = await axios.get('http://localhost:8090/api/v1/follow/following', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    
+    followingUsers.value.clear()
+    followingUsersList.value = []
+    
+    if (Array.isArray(response.data)) {
+      // Assuming the response includes user details
+      followingUsersList.value = response.data
+      response.data.forEach((user: User) => {
+        followingUsers.value.add(user.id)
+      })
+    }
+  } catch (err) {
+    error.value = 'Failed to load following users'
+  }
+}
+
+const fetchFollowers = async () => {
+  try {
+    const token = localStorage.getItem('token')
+    if (!token) return
+
+    const response = await axios.get('http://localhost:8090/api/v1/follow/followers', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    
+    if (Array.isArray(response.data)) {
+      followersList.value = response.data
+    }
+  } catch (err) {
+    error.value = 'Failed to load followers'
+  }
+}
+
+const isFollowing = (userId: string): boolean => {
+  return followingUsers.value.has(userId)
+}
+
+const toggleFollow = async (userId: string) => {
+  try {
+    const token = localStorage.getItem('token')
+    if (!token) {
+      error.value = 'Please log in to follow users'
+      return
+    }
+
+    const isCurrentlyFollowing = isFollowing(userId)
+    const endpoint = isCurrentlyFollowing ? 'unfollow' : 'follow'
+    
+    await axios.post(
+      `http://localhost:8090/api/v1/follow/${endpoint}/${userId}`,
+      {},
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    )
+
+    // Update following status
+    if (isCurrentlyFollowing) {
+      followingUsers.value.delete(userId)
+      followingUsersList.value = followingUsersList.value.filter(user => user.id !== userId)
+    } else {
+      const userToAdd = users.value.find(user => user.id === userId)
+      if (userToAdd) {
+        followingUsers.value.add(userId)
+        followingUsersList.value.push(userToAdd)
+      }
+    }
+
+    // Refresh all lists
+    await Promise.all([
+      fetchUsers(),
+      fetchFollowingUsers(),
+      fetchFollowers()
+    ])
+  } catch (err) {
+    error.value = 'Failed to update follow status'
+  }
+}
+
+// Add computed property for non-following users
+const nonFollowingUsers = computed(() => {
+  return users.value.filter(user => !isFollowing(user.id))
+})
+
 onMounted(async () => {
+  await setupCamera()
+  await Promise.all([
+    fetchUsers(),
+    fetchFollowingUsers(),
+    fetchFollowers()
+  ])
   await fetchPosts()
+})
+
+onUnmounted(() => {
+  // Clean up camera stream when component is unmounted
+  if (stream.value) {
+    stream.value.getTracks().forEach(track => track.stop())
+  }
 })
 </script>
 
 <style scoped>
 .feed-container {
-  max-width: 600px;
+  max-width: 1200px; /* Increased to accommodate the new layout */
   margin: 0 auto;
   padding: 20px;
   background-color: #000;
   min-height: 100vh;
   color: #fff;
+  display: grid;
+  grid-template-columns: 350px 1fr; /* Sidebar + main content */
+  gap: 2rem;
+}
+
+.users-section {
+  background: #111;
+  border-radius: 12px;
+  padding: 1rem;
+  height: fit-content;
+  position: sticky;
+  top: 20px;
+}
+
+.users-section h2 {
+  margin: 0 0 0 0;
+  font-size: 1.2rem;
+  color: #fff;
+  padding-bottom: 0rem;
+  border-bottom: 1px solid #333;
+}
+
+.users-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid #333;
+  padding-bottom: 0.5rem;
+}
+
+.tab-btn {
+  background: none;
+  border: none;
+  color: #666;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.tab-btn:hover {
+  color: #fff;
+  background: #222;
+}
+
+.tab-btn.active {
+  color: #fff;
+  background: #333;
+}
+
+.users-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.user-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.8rem;
+  background: #1a1a1a;
+  border-radius: 8px;
+  transition: background-color 0.2s;
+}
+
+.user-item:hover {
+  background: #222;
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.user-name {
+  font-weight: 500;
+  color: #fff;
+}
+
+.user-id {
+  font-size: 0.7rem;
+  color: #666;
+}
+
+.follow-btn {
+  background: #333;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.9rem;
+  min-width: 80px;
+}
+
+.follow-btn:hover {
+  background: #444;
+  transform: translateY(-1px);
+}
+
+.follow-btn.following {
+  background: #2c5282;
+}
+
+.follow-btn.following:hover {
+  background: #2b6cb0;
+}
+
+.feed-section {
+  min-width: 0; /* Prevents grid item from overflowing */
 }
 
 .feed-header {
@@ -277,6 +807,225 @@ onMounted(async () => {
 }
 
 .post-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.post-comments {
+  padding: 1rem;
+  background: #000;
+  border-top: 1px solid #333;
+}
+
+.comments-section {
+  margin-bottom: 1rem;
+}
+
+.comments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.comment {
+  background: #111;
+  padding: 0.8rem;
+  border-radius: 8px;
+}
+
+.comment-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.comment-author {
+  font-weight: 500;
+  color: #fff;
+}
+
+.comment-date {
+  color: #888;
+  font-size: 0.8em;
+}
+
+.comment-text {
+  color: #ddd;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.no-comments {
+  color: #888;
+  text-align: center;
+  padding: 1rem;
+}
+
+.comment-input-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.camera-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 8px;
+  transform: scaleX(-1); /* Mirror the preview for selfie */
+}
+
+.camera-canvas {
+  display: none;
+}
+
+.remove-image-btn {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.remove-image-btn:hover {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.camera-button {
+  position: relative;
+  width: 100%;
+  height: 200px;
+  background: #111;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.camera-controls {
+  position: absolute;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  display: flex;
+  gap: 1rem;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 0.5rem;
+  border-radius: 8px;
+  backdrop-filter: blur(4px);
+}
+
+.camera-btn {
+  background: #333;
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  width: 60px;
+  height: 60px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  gap: 0.3rem;
+  padding: 0;
+  background: #444;
+  transform: translateY(-2px);
+}
+
+
+
+.camera-label {
+  position: absolute;
+  bottom: -1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.7rem;
+  white-space: nowrap;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.reactions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  padding: 0.5rem;
+  background: #111;
+  border-radius: 8px;
+}
+
+.reaction-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 8px;
+  transition: background-color 0.2s;
+}
+
+.reaction-btn:hover {
+  background: #222;
+}
+
+.reaction-btn.active {
+  background: #333;
+}
+
+.comment-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.comment-submit-btn {
+  background: #fff;
+  color: #000;
+  border: none;
+  border-radius: 8px;
+  padding: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.comment-submit-btn:disabled {
+  background: #333;
+  color: #666;
+  cursor: not-allowed;
+}
+
+.comment-submit-btn:not(:disabled):hover {
+  background: #ddd;
+}
+
+.comment-image {
+  width: 100%;
+  max-height: 200px;
+  margin: 0.5rem 0;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #000;
+}
+
+.comment-image img {
   width: 100%;
   height: 100%;
   object-fit: cover;

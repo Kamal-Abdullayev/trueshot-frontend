@@ -10,7 +10,6 @@ export const feedService = {
         throw new Error('No authentication token found');
       }
 
-      console.log('Fetching feed with token:', token); // Debug log
 
       const response = await axios.get<FeedResponse>(`${API_URL}/feed`, {
         headers: {
@@ -18,11 +17,9 @@ export const feedService = {
         }
       });
 
-      console.log('Feed response:', response.data); // Debug log
       return response.data;
     } catch (error) {
       if (axios.isAxiosError(error)) {
-        console.error('Feed fetch error:', error.response?.data); // Debug log
         throw new Error(error.response?.data?.message || 'Failed to fetch feed');
       }
       throw error;

@@ -137,7 +137,6 @@ const createCalendarDay = (date: Date, isCurrentMonth: boolean): CalendarDay => 
     const postDate = new Date(p.createdAt)
     const isMatch = postDate.toDateString() === date.toDateString()
     if (isMatch) {
-      console.log('Found post for date:', date.toDateString(), 'Post:', p)
     }
     return isMatch
   })
@@ -190,7 +189,6 @@ const formatDate = (dateString?: string) => {
 
 const handleImageError = (event: Event) => {
   const img = event.target as HTMLImageElement
-  console.error('Error loading image:', img.src)
   img.src = '' // Clear the src to prevent showing broken image icon
 }
 
@@ -207,10 +205,8 @@ const fetchPosts = async () => {
         'Authorization': `Bearer ${token}`
       }
     })
-    console.log('Fetched posts:', response.data)
     posts.value = response.data
   } catch (err) {
-    console.error('Error fetching posts:', err)
     error.value = 'Failed to load posts'
   } finally {
     loading.value = false

@@ -73,7 +73,6 @@ const signup = async () => {
       router.push('/login')
     }
   } catch (err: any) {
-    console.error('Signup error:', err)
     if (err.response?.data?.message) {
       error.value = err.response.data.message
     } else {
