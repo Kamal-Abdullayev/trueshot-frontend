@@ -3,8 +3,8 @@
     <!-- Users and Groups section with tabs -->
     <div class="users-section">
       <div class="users-tabs">
-        <button 
-          v-for="tab in tabs" 
+        <button
+          v-for="tab in tabs"
           :key="tab.id"
           @click="activeTab = tab.id"
           :class="{ active: activeTab === tab.id }"
@@ -20,7 +20,7 @@
           <div class="user-info">
             <span class="user-name">{{ user.name }}</span>
           </div>
-          <button 
+          <button
             @click="toggleFollow(user.id)"
             class="follow-btn"
           >
@@ -35,7 +35,7 @@
           <div class="user-info">
             <span class="user-name">{{ user.name }}</span>
           </div>
-          <button 
+          <button
             @click="toggleFollow(user.id)"
             class="follow-btn following"
           >
@@ -50,7 +50,7 @@
           <div class="user-info">
             <span class="user-name">{{ user.name }}</span>
           </div>
-          <button 
+          <button
             @click="toggleFollow(user.id)"
             :class="{ 'following': isFollowing(user.id) }"
             class="follow-btn"
@@ -63,14 +63,14 @@
       <!-- Groups Tab -->
       <div v-if="activeTab === 'groups'" class="groups-section">
         <div class="create-group">
-          <input 
-            v-model="newGroupName" 
-            type="text" 
+          <input
+            v-model="newGroupName"
+            type="text"
             placeholder="Enter group name"
             class="group-input"
           />
-          <button 
-            @click="createGroup" 
+          <button
+            @click="createGroup"
             class="create-group-btn"
             :disabled="!newGroupName"
           >
@@ -88,21 +88,21 @@
               </div>
             </div>
             <div class="group-actions">
-              <button 
+              <button
                 v-if="isGroupMember(group)"
                 @click="leaveGroup(group.id)"
                 class="group-btn leave"
               >
                 Leave
               </button>
-              <button 
+              <button
                 v-else
                 @click="joinGroup(group.id)"
                 class="group-btn join"
               >
                 Join
               </button>
-              <button 
+              <button
                 v-if="isGroupAdmin(group)"
                 @click="deleteGroup(group.id)"
                 class="group-btn delete"
@@ -121,9 +121,9 @@
         <h1>Feed</h1>
       </div>
 
-      <ErrorModal 
-        :show="!!error" 
-        :message="error" 
+      <ErrorModal
+        :show="!!error"
+        :message="error"
         @close="error = ''"
       />
       <div v-if="loading" class="loading">
@@ -154,7 +154,7 @@
             <p class="post-text">{{ post.content }}</p>
           </div>
           <div class="post-comments">
-            <button 
+            <button
               class="toggle-comments-btn"
               @click="toggleComments(post.id)"
             >
@@ -163,7 +163,7 @@
                 ({{ post.comments.length }})
               </span>
             </button>
-            
+
             <div v-if="isCommentsVisible[post.id]" class="comments-section">
               <div v-if="post.comments && post.comments.length > 0" class="comments-list">
                 <div v-for="comment in post.comments" :key="comment.id" class="comment">
@@ -239,9 +239,9 @@
       </div>
     </div>
 
-    <ActionModal 
-      :show="!!modalMessage" 
-      :message="modalMessage" 
+    <ActionModal
+      :show="!!modalMessage"
+      :message="modalMessage"
       :is-success="isModalSuccess"
       @close="modalMessage = ''"
     />
@@ -360,7 +360,7 @@ const fetchComments = async (postId: string) => {
         'Authorization': `Bearer ${token}`
       }
     })
-    
+
     const post = posts.value.find(p => p.id === postId)
     if (post) {
       post.comments = response.data
@@ -399,7 +399,7 @@ const submitComment = async (postId: string) => {
     }
     const imageContent = capturedImages.value[postId].split(',')[1]
     const content = selectedReactions.value[postId]
-    
+
     if (!imageContent || !content) return
 
     await axios.post(
@@ -476,13 +476,13 @@ const fetchPosts = async () => {
       return
     }
 
-    const response = await axios.get('http://localhost:8090/api/v1/post/all', {
+    const response = await axios.get('http://localhost:8090/api/v1/feed', {
       headers: {
         'Authorization': `Bearer ${token}`
       }
     })
     posts.value = response.data
-    
+
     // Fetch comments for each post
     for (const post of posts.value) {
       await fetchComments(post.id)
@@ -520,10 +520,10 @@ const fetchFollowingUsers = async () => {
         'Authorization': `Bearer ${token}`
       }
     })
-    
+
     followingUsers.value.clear()
     followingUsersList.value = []
-    
+
     if (Array.isArray(response.data)) {
       // Assuming the response includes user details
       followingUsersList.value = response.data
@@ -546,7 +546,7 @@ const fetchFollowers = async () => {
         'Authorization': `Bearer ${token}`
       }
     })
-    
+
     if (Array.isArray(response.data)) {
       followersList.value = response.data
     }
@@ -569,7 +569,7 @@ const toggleFollow = async (userId: string) => {
 
     const isCurrentlyFollowing = isFollowing(userId)
     const endpoint = isCurrentlyFollowing ? 'unfollow' : 'follow'
-    
+
     await axios.post(
       `http://localhost:8090/api/v1/follow/${endpoint}/${userId}`,
       {},
@@ -619,7 +619,7 @@ const fetchGroups = async () => {
         'Authorization': `Bearer ${token}`
       }
     })
-    
+
     groups.value = response.data
   } catch (err) {
     error.value = 'Failed to load groups'
