@@ -19,37 +19,46 @@ const logout = async () => {
       </div>
       <div class="nav-links">
         <template v-if="authStore.isAuthenticated">
-        <router-link
-      to="/feed"
-      class="px-2 py-2 rounded-md bg-green-600 text-white font-medium hover:bg-gray-700 transition"
-    >
-      Feed
-    </router-link>
+          <router-link
+            to="/feed"
+            class="nav-link"
+          >
+            Feed
+          </router-link>
 
-    <router-link
-      to="/create-post"
-      class="px-2 py-2 rounded-md bg-green-600 text-white font-semibold hover:bg-gray-700 shadow-md transition"
-    >
-      Add Post
-    </router-link>
+          <router-link
+            to="/create-post"
+            class="nav-link"
+          >
+            Add Post
+          </router-link>
 
-    <router-link
-      to="/posts"
-      class="px-2 py-2 rounded-md bg-green-600 text-white font-semibold hover:bg-gray-700 shadow-md transition"
-    >
-      My Posts
-    </router-link>
-    <router-link
-      to="/calendar"
-      class="px-2 py-2 rounded-md bg-green-600 text-white font-semibold hover:bg-gray-700 shadow-md transition"
-    >
-      Calendar
-    </router-link>
-              <a href="#" @click.prevent="logout" class="px-2 py-2 rounded-md bg-red-600 text-white font-semibold hover:bg-red-700 shadow-md transition">Logout</a>
+          <router-link
+            to="/posts"
+            class="nav-link"
+          >
+            My Posts
+          </router-link>
+
+          <router-link
+            to="/calendar"
+            class="nav-link"
+          >
+            Calendar
+          </router-link>
+
+          <router-link
+            to="/notifications"
+            class="nav-link"
+          >
+            Notifications
+          </router-link>
+
+          <a href="#" @click.prevent="logout" class="nav-link logout">Logout</a>
         </template>
         <template v-else>
-          <router-link to="/login">Login</router-link>
-          <router-link to="/signup">Sign Up</router-link>
+          <router-link to="/login" class="nav-link auth-link">Login</router-link>
+          <router-link to="/signup" class="nav-link auth-link">Sign Up</router-link>
         </template>
       </div>
     </nav>
@@ -89,16 +98,37 @@ const logout = async () => {
 .nav-links {
   display: flex;
   gap: 1.5rem;
+  align-items: center;
 }
 
-.nav-links a {
+.nav-link {
   color: #2c3e50;
   text-decoration: none;
   font-weight: 500;
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+  transition: all 0.2s ease;
 }
 
-.nav-links a:hover {
-  color: #42b983;
+.nav-link:hover {
+  background-color: #f3f4f6;
+}
+
+.auth-link {
+  color: #4b5563;
+}
+
+.auth-link:hover {
+  color: #1f2937;
+}
+
+.logout {
+  color: #dc2626;
+}
+
+.logout:hover {
+  background-color: #fee2e2;
+  color: #b91c1c;
 }
 
 .main-content {

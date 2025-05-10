@@ -7,6 +7,7 @@ import FeedView from '../views/FeedView.vue'
 import CreatePostView from '../views/CreatePostView.vue'
 import PostManagement from '../views/PostManagement.vue'
 import CalendarView from '../views/CalendarView.vue'
+import NotificationsView from '../views/NotificationsView.vue'
 import { useAuthStore } from '@/stores/auth'
 
 const router = createRouter({
@@ -64,6 +65,12 @@ const router = createRouter({
       path: '/calendar',
       name: 'calendar',
       component: CalendarView,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/notifications',
+      name: 'notifications',
+      component: NotificationsView,
       meta: { requiresAuth: true }
     }
   ],

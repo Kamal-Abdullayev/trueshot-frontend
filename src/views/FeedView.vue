@@ -476,7 +476,7 @@ const fetchPosts = async () => {
       return
     }
 
-    const response = await axios.get('http://localhost:8090/api/v1/feed', {
+    const response = await axios.get('http://localhost:8090/api/v1/post/all', {
       headers: {
         'Authorization': `Bearer ${token}`
       }

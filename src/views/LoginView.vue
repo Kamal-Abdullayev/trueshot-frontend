@@ -62,22 +62,16 @@ const login = async () => {
       error.value = 'Password must be at least 5 characters long'
       return
     }
-    const response = await axios.post('http://localhost:8090/api/v1/auth/authenticate', {
+
+    const response = await authStore.login({
       name: username.value,
       password: password.value
     })
 
-
-    // The response is the JWT token string directly
-    if (response.data) {
-      // Update auth store state
-      authStore.token = response.data
-      authStore.isAuthenticated = true
-      localStorage.setItem('token', response.data)
-      localStorage.setItem('username', username.value)
+    if (response) {
       await router.push('/feed')
     } else {
-      error.value = 'Login failed: No token received'
+      error.value = 'Login failed: No response received'
     }
   } catch (err: any) {
     if (err.response?.status === 401 || err.response?.status === 403) {
