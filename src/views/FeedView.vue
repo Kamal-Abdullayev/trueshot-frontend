@@ -83,8 +83,8 @@
             <div class="group-info">
               <span class="group-name">{{ group.name }}</span>
               <div class="group-details">
-                <span class="group-admin">Admin: {{ group.admin.name }}</span>
-                <span class="group-members">Members: {{ group.members.length }}</span>
+                <span class="group-admin">Admin: {{ group.admin?.name || 'Unknown' }}</span>
+                <span class="group-members">Members: {{ group.members?.length || 0 }}</span>
               </div>
             </div>
             <div class="group-actions">
@@ -189,8 +189,8 @@
                   </button>
                 </div>
                 <div v-else class="camera-button">
-                  <video :ref="el => videoRefs[post.id] = el" class="camera-preview" autoplay playsinline></video>
-                  <canvas :ref="el => canvasRefs[post.id] = el" class="camera-canvas" style="display: none;"></canvas>
+                  <video :ref="el => videoRefs[post.id] = el as HTMLVideoElement" class="camera-preview" autoplay playsinline></video>
+                  <canvas :ref="el => canvasRefs[post.id] = el as HTMLCanvasElement" class="camera-canvas" style="display: none;"></canvas>
                   <div class="camera-controls">
                     <button
                       v-if="!isCameraActive[post.id] && !capturedImages[post.id]"
@@ -352,6 +352,7 @@ const handleImageError = (event: Event) => {
 
 const fetchComments = async (postId: string) => {
   try {
+    console.log('Fetching comments for postId:', postId)
     const token = localStorage.getItem('token')
     if (!token) return
 
@@ -360,12 +361,14 @@ const fetchComments = async (postId: string) => {
         'Authorization': `Bearer ${token}`
       }
     })
+    console.log('Fetched comments:', response.data)
 
     const post = posts.value.find(p => p.id === postId)
     if (post) {
       post.comments = response.data
     }
   } catch (err) {
+    console.error('Error fetching comments:', err)
   }
 }
 
@@ -392,15 +395,42 @@ const selectReaction = (reaction: string, postId: string) => {
 
 const submitComment = async (postId: string) => {
   try {
+    console.log('Submitting comment for postId:', postId)
+    console.log('Current posts:', posts.value)
+
     const token = localStorage.getItem('token')
     if (!token) {
+      console.log('No token found')
       showModal('Please log in to comment', false)
       return
     }
-    const imageContent = capturedImages.value[postId].split(',')[1]
+
+    if (!postId) {
+      console.log('Invalid postId:', postId)
+      showModal('Invalid post ID', false)
+      return
+    }
+
+    console.log('Captured images:', capturedImages.value)
+    console.log('Selected reactions:', selectedReactions.value)
+
+    const imageContent = capturedImages.value[postId]?.split(',')[1]
     const content = selectedReactions.value[postId]
 
-    if (!imageContent || !content) return
+    console.log('Image content exists:', !!imageContent)
+    console.log('Content exists:', !!content)
+
+    if (!imageContent || !content) {
+      console.log('Missing required data:', { imageContent: !!imageContent, content: !!content })
+      showModal('Please capture an image and select a reaction', false)
+      return
+    }
+
+    console.log('Sending comment request with data:', {
+      postId,
+      content,
+      hasImage: !!imageContent
+    })
 
     await axios.post(
       `http://localhost:8090/api/v1/comments`,
@@ -416,6 +446,7 @@ const submitComment = async (postId: string) => {
       }
     )
 
+    console.log('Comment posted successfully')
     await fetchComments(postId)
     isCameraActive.value[postId] = false
     showModal('Comment posted successfully!')
@@ -424,6 +455,7 @@ const submitComment = async (postId: string) => {
     delete capturedImages.value[postId]
     delete selectedReactions.value[postId]
   } catch (err) {
+    console.error('Error posting comment:', err)
     showModal('Failed to post comment', false)
   }
 }
@@ -470,8 +502,10 @@ const takePicture = async (postId: string) => {
 
 const fetchPosts = async () => {
   try {
+    console.log('Fetching posts...')
     const token = localStorage.getItem('token')
     if (!token) {
+      console.log('No token found for fetching posts')
       error.value = 'Please log in to view posts'
       return
     }
@@ -481,13 +515,16 @@ const fetchPosts = async () => {
         'Authorization': `Bearer ${token}`
       }
     })
+    console.log('Fetched posts:', response.data)
     posts.value = response.data
 
     // Fetch comments for each post
     for (const post of posts.value) {
+      console.log('Fetching comments for post:', post.id)
       await fetchComments(post.id)
     }
   } catch (err) {
+    console.error('Error fetching posts:', err)
     error.value = 'Failed to load posts'
   } finally {
     loading.value = false
@@ -611,17 +648,26 @@ const nonFollowingUsers = computed(() => {
 // Add group-related functions
 const fetchGroups = async () => {
   try {
+    console.log('Fetching groups...')
     const token = localStorage.getItem('token')
-    if (!token) return
+    if (!token) {
+      console.log('No token found for fetching groups')
+      return
+    }
 
     const response = await axios.get('http://localhost:8090/api/v1/groups/all', {
       headers: {
         'Authorization': `Bearer ${token}`
       }
     })
-
-    groups.value = response.data
+    console.log('Fetched groups:', response.data)
+    groups.value = response.data.map((group: any) => ({
+      ...group,
+      members: group.members || [],
+      admin: group.admin || { name: 'Unknown' }
+    }))
   } catch (err) {
+    console.error('Error fetching groups:', err)
     error.value = 'Failed to load groups'
   }
 }
@@ -701,12 +747,12 @@ const deleteGroup = async (groupId: string) => {
 
 const isGroupMember = (group: Group): boolean => {
   const currentUsername = getCurrentUsername()
-  return group.members.some(member => member.name === currentUsername)
+  return group.members?.some(member => member.name === currentUsername) || false
 }
 
 const isGroupAdmin = (group: Group): boolean => {
   const currentUsername = getCurrentUsername()
-  return group.admin.name === currentUsername
+  return group.admin?.name === currentUsername
 }
 
 const getCurrentUsername = (): string => {
@@ -726,7 +772,6 @@ const toggleComments = (postId: string) => {
 }
 
 onMounted(async () => {
-  await setupCamera()
   await Promise.all([
     fetchUsers(),
     fetchFollowingUsers(),
