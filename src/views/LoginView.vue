@@ -74,6 +74,7 @@ const login = async () => {
       authStore.token = response.data
       authStore.isAuthenticated = true
       localStorage.setItem('token', response.data)
+      localStorage.setItem('username', username.value)
       await router.push('/feed')
     } else {
       error.value = 'Login failed: No token received'

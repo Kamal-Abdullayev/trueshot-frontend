@@ -28,23 +28,24 @@ const logout = async () => {
 
     <router-link
       to="/create-post"
-      class="px-2 py-2 rounded-md bg-green-600 text-white font-semibold hover:bg-indigo-500 shadow-md transition"
+      class="px-2 py-2 rounded-md bg-green-600 text-white font-semibold hover:bg-gray-700 shadow-md transition"
     >
       Add Post
     </router-link>
 
     <router-link
       to="/posts"
-      class="px-2 py-2 rounded-md bg-green-600 text-white font-semibold hover:bg-indigo-500 shadow-md transition"
+      class="px-2 py-2 rounded-md bg-green-600 text-white font-semibold hover:bg-gray-700 shadow-md transition"
     >
       My Posts
     </router-link>
     <router-link
       to="/calendar"
-      class="px-2 py-2 rounded-md bg-green-600 text-white font-semibold hover:bg-indigo-500 shadow-md transition"
+      class="px-2 py-2 rounded-md bg-green-600 text-white font-semibold hover:bg-gray-700 shadow-md transition"
     >
       Calendar
     </router-link>
+              <a href="#" @click.prevent="logout" class="px-2 py-2 rounded-md bg-red-600 text-white font-semibold hover:bg-red-700 shadow-md transition">Logout</a>
         </template>
         <template v-else>
           <router-link to="/login">Login</router-link>

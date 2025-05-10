@@ -1,6 +1,6 @@
 <template>
   <div class="feed-container">
-    <!-- Users section with tabs -->
+    <!-- Users and Groups section with tabs -->
     <div class="users-section">
       <div class="users-tabs">
         <button 
@@ -59,6 +59,60 @@
           </button>
         </div>
       </div>
+
+      <!-- Groups Tab -->
+      <div v-if="activeTab === 'groups'" class="groups-section">
+        <div class="create-group">
+          <input 
+            v-model="newGroupName" 
+            type="text" 
+            placeholder="Enter group name"
+            class="group-input"
+          />
+          <button 
+            @click="createGroup" 
+            class="create-group-btn"
+            :disabled="!newGroupName"
+          >
+            Create Group
+          </button>
+        </div>
+
+        <div class="groups-list">
+          <div v-for="group in groups" :key="group.id" class="group-item">
+            <div class="group-info">
+              <span class="group-name">{{ group.name }}</span>
+              <div class="group-details">
+                <span class="group-admin">Admin: {{ group.admin.name }}</span>
+                <span class="group-members">Members: {{ group.members.length }}</span>
+              </div>
+            </div>
+            <div class="group-actions">
+              <button 
+                v-if="isGroupMember(group)"
+                @click="leaveGroup(group.id)"
+                class="group-btn leave"
+              >
+                Leave
+              </button>
+              <button 
+                v-else
+                @click="joinGroup(group.id)"
+                class="group-btn join"
+              >
+                Join
+              </button>
+              <button 
+                v-if="isGroupAdmin(group)"
+                @click="deleteGroup(group.id)"
+                class="group-btn delete"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Feed section -->
@@ -67,14 +121,16 @@
         <h1>Feed</h1>
       </div>
 
+      <ErrorModal 
+        :show="!!error" 
+        :message="error" 
+        @close="error = ''"
+      />
       <div v-if="loading" class="loading">
         <div class="loading-spinner"></div>
         <p>Loading posts...</p>
       </div>
 
-      <div v-else-if="error" class="error">
-        {{ error }}
-      </div>
 
       <div v-else-if="!posts || posts.length === 0" class="no-posts">
         <p>No posts available yet.</p>
@@ -98,7 +154,17 @@
             <p class="post-text">{{ post.content }}</p>
           </div>
           <div class="post-comments">
-            <div class="comments-section">
+            <button 
+              class="toggle-comments-btn"
+              @click="toggleComments(post.id)"
+            >
+              {{ isCommentsVisible[post.id] ? 'Hide Comments' : 'Show Comments' }}
+              <span class="comment-count" v-if="post.comments && post.comments.length > 0">
+                ({{ post.comments.length }})
+              </span>
+            </button>
+            
+            <div v-if="isCommentsVisible[post.id]" class="comments-section">
               <div v-if="post.comments && post.comments.length > 0" class="comments-list">
                 <div v-for="comment in post.comments" :key="comment.id" class="comment">
                   <div class="comment-header">
@@ -172,6 +238,13 @@
         </div>
       </div>
     </div>
+
+    <ActionModal 
+      :show="!!modalMessage" 
+      :message="modalMessage" 
+      :is-success="isModalSuccess"
+      @close="modalMessage = ''"
+    />
   </div>
 </template>
 
@@ -179,6 +252,8 @@
 
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import axios from 'axios'
+import ErrorModal from '@/components/ErrorModal.vue'
+import ActionModal from '@/components/ActionModal.vue'
 
 interface Comment {
   id: string
@@ -207,6 +282,13 @@ interface User {
   roles: string
 }
 
+interface Group {
+  id: string
+  name: string
+  admin: User
+  members: User[]
+}
+
 const isCameraActive = ref<Record<string, boolean>>({})
 const posts = ref<Post[]>([])
 const loading = ref(true)
@@ -227,11 +309,24 @@ const activeTab = ref('suggestions')
 const tabs = [
   { id: 'suggestions', name: 'Suggestions' },
   { id: 'following', name: 'Following' },
-  { id: 'followers', name: 'Followers' }
+  { id: 'followers', name: 'Followers' },
+  { id: 'groups', name: 'Groups' }
 ]
 
 const followingUsersList = ref<User[]>([])
 const followersList = ref<User[]>([])
+
+// Add new refs for groups
+const newGroupName = ref('')
+const groups = ref<Group[]>([])
+const myGroups = ref<Set<string>>(new Set())
+
+// Add new refs for modal
+const modalMessage = ref('')
+const isModalSuccess = ref(true)
+
+// Add new ref for comments visibility
+const isCommentsVisible = ref<Record<string, boolean>>({})
 
 const formatDate = (dateString?: string) => {
   if (!dateString) return 'N/A'
@@ -299,7 +394,7 @@ const submitComment = async (postId: string) => {
   try {
     const token = localStorage.getItem('token')
     if (!token) {
-      error.value = 'Please log in to comment'
+      showModal('Please log in to comment', false)
       return
     }
     const imageContent = capturedImages.value[postId].split(',')[1]
@@ -307,7 +402,7 @@ const submitComment = async (postId: string) => {
     
     if (!imageContent || !content) return
 
-    const response = await axios.post(
+    await axios.post(
       `http://localhost:8090/api/v1/comments`,
       {
         postId,
@@ -321,16 +416,15 @@ const submitComment = async (postId: string) => {
       }
     )
 
-    // Refresh comments for this post
     await fetchComments(postId)
     isCameraActive.value[postId] = false
-    alert('Comment posted successfully!')
+    showModal('Comment posted successfully!')
 
     // Clear the form
     delete capturedImages.value[postId]
     delete selectedReactions.value[postId]
   } catch (err) {
-    error.value = 'Failed to post comment'
+    showModal('Failed to post comment', false)
   }
 }
 
@@ -469,7 +563,7 @@ const toggleFollow = async (userId: string) => {
   try {
     const token = localStorage.getItem('token')
     if (!token) {
-      error.value = 'Please log in to follow users'
+      showModal('Please log in to follow users', false)
       return
     }
 
@@ -486,26 +580,26 @@ const toggleFollow = async (userId: string) => {
       }
     )
 
-    // Update following status
     if (isCurrentlyFollowing) {
       followingUsers.value.delete(userId)
       followingUsersList.value = followingUsersList.value.filter(user => user.id !== userId)
+      showModal('Successfully unfollowed user!')
     } else {
       const userToAdd = users.value.find(user => user.id === userId)
       if (userToAdd) {
         followingUsers.value.add(userId)
         followingUsersList.value.push(userToAdd)
+        showModal('Successfully followed user!')
       }
     }
 
-    // Refresh all lists
     await Promise.all([
       fetchUsers(),
       fetchFollowingUsers(),
       fetchFollowers()
     ])
   } catch (err) {
-    error.value = 'Failed to update follow status'
+    showModal('Failed to update follow status', false)
   }
 }
 
@@ -514,12 +608,130 @@ const nonFollowingUsers = computed(() => {
   return users.value.filter(user => !isFollowing(user.id))
 })
 
+// Add group-related functions
+const fetchGroups = async () => {
+  try {
+    const token = localStorage.getItem('token')
+    if (!token) return
+
+    const response = await axios.get('http://localhost:8090/api/v1/groups/all', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    
+    groups.value = response.data
+  } catch (err) {
+    error.value = 'Failed to load groups'
+  }
+}
+
+const createGroup = async () => {
+  try {
+    const token = localStorage.getItem('token')
+    if (!token || !newGroupName.value) return
+
+    await axios.post(`http://localhost:8090/api/v1/groups/create?name=${encodeURIComponent(newGroupName.value)}`, {}, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+
+    newGroupName.value = ''
+    await fetchGroups()
+    showModal('Group created successfully!')
+  } catch (err) {
+    showModal('Failed to create group', false)
+  }
+}
+
+const joinGroup = async (groupId: string) => {
+  try {
+    const token = localStorage.getItem('token')
+    if (!token) return
+
+    await axios.post(`http://localhost:8090/api/v1/groups/${groupId}/join`, {}, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+
+    await fetchGroups()
+    showModal('Successfully joined the group!')
+  } catch (err) {
+    showModal('Failed to join group', false)
+  }
+}
+
+const leaveGroup = async (groupId: string) => {
+  try {
+    const token = localStorage.getItem('token')
+    if (!token) return
+
+    await axios.post(`http://localhost:8090/api/v1/groups/${groupId}/leave`, {}, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+
+    await fetchGroups()
+    showModal('Successfully left the group!')
+  } catch (err) {
+    showModal('Failed to leave group', false)
+  }
+}
+
+const deleteGroup = async (groupId: string) => {
+  try {
+    const token = localStorage.getItem('token')
+    if (!token) return
+
+    await axios.delete(`http://localhost:8090/api/v1/groups/${groupId}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+
+    await fetchGroups()
+    showModal('Group deleted successfully!')
+  } catch (err) {
+    showModal('Failed to delete group', false)
+  }
+}
+
+const isGroupMember = (group: Group): boolean => {
+  const currentUsername = getCurrentUsername()
+  return group.members.some(member => member.name === currentUsername)
+}
+
+const isGroupAdmin = (group: Group): boolean => {
+  const currentUsername = getCurrentUsername()
+  return group.admin.name === currentUsername
+}
+
+const getCurrentUsername = (): string => {
+  // You'll need to implement this based on how you store the current user's ID in your application
+  return localStorage.getItem('username') || ''
+}
+
+// Helper function to show modal
+const showModal = (message: string, success: boolean = true) => {
+  modalMessage.value = message
+  isModalSuccess.value = success
+}
+
+// Add toggle function
+const toggleComments = (postId: string) => {
+  isCommentsVisible.value[postId] = !isCommentsVisible.value[postId]
+}
+
 onMounted(async () => {
   await setupCamera()
   await Promise.all([
     fetchUsers(),
     fetchFollowingUsers(),
-    fetchFollowers()
+    fetchFollowers(),
+    fetchGroups()
   ])
   await fetchPosts()
 })
@@ -541,7 +753,7 @@ onUnmounted(() => {
   min-height: 100vh;
   color: #fff;
   display: grid;
-  grid-template-columns: 350px 1fr; /* Sidebar + main content */
+  grid-template-columns: 450px 1fr; /* Sidebar + main content */
   gap: 2rem;
 }
 
@@ -720,15 +932,6 @@ onUnmounted(() => {
   100% { transform: rotate(360deg); }
 }
 
-.error {
-  color: #ff4444;
-  text-align: center;
-  padding: 1rem;
-  background: rgba(255, 68, 68, 0.1);
-  border-radius: 4px;
-  margin: 1rem 0;
-}
-
 .no-posts {
   text-align: center;
   padding: 3rem;
@@ -815,8 +1018,31 @@ onUnmounted(() => {
   border-top: 1px solid #333;
 }
 
+.toggle-comments-btn {
+  background: none;
+  border: none;
+  color: #666;
+  padding: 0.5rem 0;
+  cursor: pointer;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: color 0.2s;
+}
+
+.toggle-comments-btn:hover {
+  color: #fff;
+}
+
+.comment-count {
+  color: #666;
+  font-size: 0.8rem;
+}
+
 .comments-section {
-  margin-bottom: 1rem;
+  margin-top: 1rem;
+  transition: all 0.3s ease;
 }
 
 .comments-list {
@@ -945,8 +1171,6 @@ onUnmounted(() => {
   transform: translateY(-2px);
 }
 
-
-
 .camera-label {
   position: absolute;
   bottom: -1.5rem;
@@ -1026,5 +1250,133 @@ onUnmounted(() => {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.groups-section {
+  margin-top: 1rem;
+}
+
+.create-group {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.group-input {
+  flex: 1;
+  background: #222;
+  border: 1px solid #333;
+  color: #fff;
+  padding: 0.5rem;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.group-input:focus {
+  outline: none;
+  border-color: #444;
+}
+
+.create-group-btn {
+  background: #2c5282;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.create-group-btn:hover:not(:disabled) {
+  background: #2b6cb0;
+}
+
+.create-group-btn:disabled {
+  background: #333;
+  cursor: not-allowed;
+}
+
+.group-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.8rem;
+  background: #1a1a1a;
+  border-radius: 8px;
+  margin-bottom: 0.5rem;
+}
+
+.group-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.group-name {
+  font-weight: 500;
+  color: #fff;
+}
+
+.group-id {
+  font-size: 0.7rem;
+  color: #666;
+}
+
+.group-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.group-btn {
+  border: none;
+  border-radius: 4px;
+  padding: 0.4rem 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.8rem;
+}
+
+.group-btn.join {
+  background: #2c5282;
+  color: #fff;
+}
+
+.group-btn.join:hover {
+  background: #2b6cb0;
+}
+
+.group-btn.leave {
+  background: #666;
+  color: #fff;
+}
+
+.group-btn.leave:hover {
+  background: #777;
+}
+
+.group-btn.delete {
+  background: #822c2c;
+  color: #fff;
+}
+
+.group-btn.delete:hover {
+  background: #b02b2b;
+}
+
+.group-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-top: 0.3rem;
+}
+
+.group-admin,
+.group-members {
+  font-size: 0.8rem;
+  color: #666;
+}
+
+.group-admin {
+  color: #2c5282;
 }
 </style>
