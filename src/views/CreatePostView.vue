@@ -360,16 +360,19 @@ onBeforeUnmount(() => {
   margin-bottom: 1.5rem;
   text-align: center;
   background: #000;
-  border-radius: 12px;
+  border-radius: 50%;
   overflow: hidden;
+  width: 300px;
+  height: 300px;
+  margin: 0 auto 1.5rem;
 }
 
 .camera-preview {
   width: 100%;
-  max-width: 100%;
-  height: auto;
-  aspect-ratio: 4/3;
-  background-color: #000;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  transform: scaleX(-1); /* Mirror the preview for selfie */
 }
 
 .camera-canvas {
@@ -378,14 +381,16 @@ onBeforeUnmount(() => {
 
 .image-preview {
   width: 100%;
-  aspect-ratio: 4/3;
+  height: 100%;
   overflow: hidden;
+  border-radius: 50%;
 }
 
 .image-preview img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  border-radius: 50%;
 }
 
 .camera-controls {
@@ -396,13 +401,13 @@ onBeforeUnmount(() => {
 }
 
 .camera-btn {
-  width: 60px;
-  height: 60px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   border: none;
   background-color: #fff;
   color: #000;
-  font-size: 1.5rem;
+  font-size: 0.8rem;
   cursor: pointer;
   transition: transform 0.2s;
   display: flex;
