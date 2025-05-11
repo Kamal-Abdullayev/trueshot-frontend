@@ -1494,11 +1494,12 @@ onUnmounted(() => {
 }
 
 .camera-preview {
-  width: 100%;
-  height: 100%;
+  width: 200px;
+  height: 200px;
   object-fit: cover;
-  border-radius: 8px;
+  border-radius: 50%;
   transform: scaleX(-1); /* Mirror the preview for selfie */
+  margin: 0 auto;
 }
 
 .camera-canvas {
@@ -1528,14 +1529,15 @@ onUnmounted(() => {
 
 .camera-button {
   position: relative;
-  width: 100%;
+  width: 200px;
   height: 200px;
   background: #111;
-  border-radius: 8px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  margin: 0 auto;
 }
 
 .camera-controls {
@@ -1557,13 +1559,13 @@ onUnmounted(() => {
   color: #fff;
   border: none;
   border-radius: 50%;
-  width: 60px;
-  height: 60px;
+  width: 30px;
+  height: 30px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  font-size: 1.2rem;
+  font-size: 0.8rem;
   cursor: pointer;
   transition: all 0.2s;
   gap: 0.3rem;
@@ -1574,10 +1576,10 @@ onUnmounted(() => {
 
 .camera-label {
   position: absolute;
-  bottom: -1.5rem;
+  bottom: -1rem;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 0.7rem;
+  font-size: 0.5rem;
   white-space: nowrap;
   color: #fff;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
@@ -1639,10 +1641,10 @@ onUnmounted(() => {
 }
 
 .comment-image {
-  width: 100%;
-  max-height: 200px;
-  margin: 0.5rem 0;
-  border-radius: 8px;
+  width: 200px;
+  height: 200px;
+  margin: 0.5rem auto;
+  border-radius: 50%;
   overflow: hidden;
   background: #000;
 }
@@ -1651,6 +1653,8 @@ onUnmounted(() => {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  border-radius: 50%;
+  transform: scaleX(-1); /* Mirror the image for selfie */
 }
 
 .groups-section {
