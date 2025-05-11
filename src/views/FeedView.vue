@@ -182,6 +182,13 @@
               </div>
             </div>
           </div>
+          <router-link
+            :to="{ path: '/create-post', query: { groupId: currentGroupId } }"
+            class="create-post-btn"
+          >
+            <i class="fas fa-camera"></i>
+            Create Post for Challenge
+          </router-link>
         </div>
         <div v-else class="no-challenge">
           <div class="no-challenge-content">
@@ -363,6 +370,20 @@
               </div>
             </div>
           </div>
+          <div v-if="currentChallenge" class="form-group challenge-toggle">
+            <label class="toggle-label">
+              <input
+                type="checkbox"
+                v-model="addToChallenge"
+                class="toggle-input"
+              />
+              <span class="toggle-text">Add to current challenge</span>
+              <div class="challenge-info" v-if="addToChallenge">
+                <p class="challenge-name">{{ currentChallenge.title }}</p>
+                <p class="challenge-points">{{ currentChallenge.point }} points</p>
+              </div>
+            </label>
+          </div>
         </div>
         <div class="modal-footer">
           <button @click="showPostModal = false" class="cancel-btn">Cancel</button>
@@ -496,6 +517,9 @@ const newPostTitle = ref('')
 const newPostContent = ref('')
 const newPostImage = ref<string | null>(null)
 const isUploading = ref(false)
+
+// Add new ref for challenge toggle
+const addToChallenge = ref(false)
 
 const router = useRouter()
 
@@ -1021,7 +1045,7 @@ const fetchGroupChallenge = async (groupId: string) => {
   }
 }
 
-// Add function to handle post creation
+// Update createPost function
 const createPost = async () => {
   try {
     if (!newPostTitle.value || !newPostContent.value || !newPostImage.value) {
@@ -1036,19 +1060,31 @@ const createPost = async () => {
       return
     }
 
-    if (!currentChallenge.value?.id) {
+    // Check if user wants to add to challenge but there's no active challenge
+    if (addToChallenge.value && !currentChallenge.value?.id) {
       showModal('No active challenge found', false)
       return
     }
 
+    const postData: {
+      title: string;
+      content: string;
+      imageContent: string;
+      challengeId?: string;
+    } = {
+      title: newPostTitle.value,
+      content: newPostContent.value,
+      imageContent: newPostImage.value.split(',')[1] // Remove the data:image/jpeg;base64, prefix
+    }
+
+    // Add challengeId only if user wants to add to challenge
+    if (addToChallenge.value && currentChallenge.value?.id) {
+      postData.challengeId = currentChallenge.value.id
+    }
+
     const response = await axios.post(
       'http://localhost:8090/api/v1/post',
-      {
-        title: newPostTitle.value,
-        content: newPostContent.value,
-        challengeId: currentChallenge.value.id,
-        imageContent: newPostImage.value.split(',')[1] // Remove the data:image/jpeg;base64, prefix
-      },
+      postData,
       {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -1068,60 +1104,12 @@ const createPost = async () => {
   }
 }
 
-// Add new function to handle camera for post creation
-const setupPostCamera = async () => {
-  try {
-    const localStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'user' },
-      audio: false
-    })
-
-    const video = document.createElement('video')
-    video.srcObject = localStream
-    video.play()
-    stream.value = localStream
-
-    // Create canvas for capturing
-    const canvas = document.createElement('canvas')
-    const context = canvas.getContext('2d')
-
-    // Wait for video to be ready
-    await new Promise((resolve) => {
-      video.onloadedmetadata = () => {
-        canvas.width = video.videoWidth
-        canvas.height = video.videoHeight
-        resolve(null)
-      }
-    })
-
-    // Draw video frame to canvas
-    context?.drawImage(video, 0, 0, canvas.width, canvas.height)
-    const imageData = canvas.toDataURL('image/jpeg')
-    newPostImage.value = imageData
-
-    // Stop the camera stream
-    if (stream.value) {
-      stream.value.getTracks().forEach(track => track.stop())
-      stream.value = null
-    }
-
-    // Show the post modal after capturing
-    showPostModal.value = true
-  } catch (err) {
-    console.error('Error accessing camera:', err)
-    showModal('Could not access camera', false)
-  }
-}
-
-// Update the add post button click handler
-const handleAddPostClick = () => {
-  setupPostCamera()
-}
-
+// Update resetPostForm to include resetting challenge toggle
 const resetPostForm = () => {
   newPostTitle.value = ''
   newPostContent.value = ''
   newPostImage.value = null
+  addToChallenge.value = false
 }
 
 const handleImageUpload = (event: Event) => {
@@ -2206,5 +2194,76 @@ onUnmounted(() => {
   background: #1a365d;
   cursor: not-allowed;
   opacity: 0.7;
+}
+
+.challenge-toggle {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: rgba(44, 82, 130, 0.1);
+  border-radius: 8px;
+  border: 1px solid rgba(44, 82, 130, 0.2);
+}
+
+.toggle-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.toggle-input {
+  margin-right: 0.5rem;
+}
+
+.toggle-text {
+  font-weight: 500;
+  color: #fff;
+}
+
+.challenge-info {
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background: rgba(44, 82, 130, 0.2);
+  border-radius: 4px;
+}
+
+.challenge-name {
+  margin: 0;
+  color: #fff;
+  font-weight: 500;
+}
+
+.challenge-points {
+  margin: 0.2rem 0 0 0;
+  color: #f6e05e;
+  font-size: 0.9rem;
+}
+
+.create-post-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8rem;
+  background: #2c5282;
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  padding: 1rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 1.5rem;
+  text-decoration: none;
+  width: 100%;
+}
+
+.create-post-btn:hover {
+  background: #2b6cb0;
+  transform: translateY(-2px);
+}
+
+.create-post-btn i {
+  font-size: 1.2rem;
 }
 </style>

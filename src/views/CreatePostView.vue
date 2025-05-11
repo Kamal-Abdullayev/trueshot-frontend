@@ -8,6 +8,13 @@
     </div>
 
     <form @submit.prevent="createPost" class="post-form">
+      <div v-if="currentChallenge" class="challenge-info">
+        <h3>Current Challenge</h3>
+        <p class="challenge-title">{{ currentChallenge.title }}</p>
+        <p class="challenge-points">{{ currentChallenge.point }} points</p>
+        <p class="challenge-description">{{ currentChallenge.content }}</p>
+      </div>
+
       <div class="camera-container">
         <video ref="videoRef" class="camera-preview" autoplay playsinline></video>
         <canvas ref="canvasRef" class="camera-canvas" style="display: none;"></canvas>
@@ -61,10 +68,11 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import axios from 'axios'
 
 const router = useRouter()
+const route = useRoute()
 const videoRef = ref<HTMLVideoElement | null>(null)
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 const imagePreview = ref('')
@@ -74,8 +82,25 @@ const stream = ref<MediaStream | null>(null)
 const post = ref({
   title: 'New Post', // Default title since we're focusing on image and content
   content: '',
-  imageContent: ''
+  imageContent: '',
+  challengeId: '' // Add challengeId field
 })
+
+// Add new ref for challenge info
+const currentChallenge = ref<Challenge | null>(null)
+
+// Add Challenge interface
+interface Challenge {
+  id: string
+  title: string
+  content: string
+  groupId: string
+  createdBy: string
+  point: number
+  challengeRewardTag: string
+  endTime: string
+  challengeId: string
+}
 
 const startCamera = async () => {
   try {
@@ -167,6 +192,54 @@ const retryCamera = () => {
   startCamera()
 }
 
+// Add function to fetch challenge
+const fetchChallenge = async (groupId: string) => {
+  try {
+    console.log('Fetching challenge for group:', groupId)
+    const token = localStorage.getItem('token')
+    if (!token) {
+      console.error('No token found')
+      return
+    }
+
+    const response = await axios.get(`http://localhost:8090/api/v1/groups/last-challenge/${groupId}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+
+    console.log('Challenge response:', response.data)
+
+    if (response.data) {
+      currentChallenge.value = response.data
+      console.log('Challenge set with ID:', response.data.challengeId)
+    } else {
+      console.log('No challenge data in response')
+      currentChallenge.value = null
+    }
+  } catch (err) {
+    console.error('Error fetching challenge:', err)
+    if (axios.isAxiosError(err)) {
+      console.error('Response data:', err.response?.data)
+      console.error('Response status:', err.response?.status)
+    }
+    currentChallenge.value = null
+  }
+}
+
+// Update onMounted to ensure challenge is fetched
+onMounted(async () => {
+  const groupId = route.query.groupId as string
+  console.log('Initial groupId:', groupId)
+
+  if (groupId) {
+    console.log('Fetching initial challenge for group:', groupId)
+    await fetchChallenge(groupId)
+  }
+
+  startCamera()
+})
+
 const createPost = async () => {
   try {
     const token = localStorage.getItem('token')
@@ -175,11 +248,35 @@ const createPost = async () => {
       return
     }
 
-    const response = await axios.post('http://localhost:8090/api/v1/post', {
+    // Ensure we have the challenge ID from the route query
+    const groupId = route.query.groupId as string
+    console.log('Group ID from route:', groupId)
+
+    // Always try to fetch the challenge if we have a groupId
+    if (groupId) {
+      console.log('Fetching challenge for group:', groupId)
+      await fetchChallenge(groupId)
+    }
+
+    console.log('Current challenge before creating post:', currentChallenge.value)
+
+    // Extract challenge ID from the response
+    const challengeId = currentChallenge.value?.challengeId
+    console.log('Extracted challenge ID:', challengeId)
+
+    const postData = {
       title: post.value.title,
       content: post.value.content,
-      imageContent: post.value.imageContent
-    }, {
+      imageContent: post.value.imageContent,
+      challengeId: challengeId || null
+    }
+
+    console.log('Final post data being sent:', {
+      ...postData,
+      imageContent: postData.imageContent ? '[BASE64_IMAGE]' : null
+    })
+
+    const response = await axios.post('http://localhost:8090/api/v1/post', postData, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
@@ -190,6 +287,11 @@ const createPost = async () => {
       router.push('/feed')
     }
   } catch (error) {
+    console.error('Error creating post:', error)
+    if (axios.isAxiosError(error)) {
+      console.error('Response data:', error.response?.data)
+      console.error('Response status:', error.response?.status)
+    }
     alert('Failed to create post. Please try again.')
   }
 }
@@ -398,5 +500,38 @@ textarea:focus {
 
 .retry-btn i {
   font-size: 1.1em;
+}
+
+.challenge-info {
+  background: linear-gradient(145deg, #1a1a1a, #222);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  border: 1px solid #333;
+}
+
+.challenge-info h3 {
+  color: #fff;
+  margin: 0 0 1rem 0;
+  font-size: 1.2rem;
+}
+
+.challenge-title {
+  color: #fff;
+  font-size: 1.1rem;
+  margin: 0 0 0.5rem 0;
+}
+
+.challenge-points {
+  color: #f6e05e;
+  font-size: 0.9rem;
+  margin: 0 0 0.5rem 0;
+}
+
+.challenge-description {
+  color: #bbb;
+  font-size: 0.9rem;
+  margin: 0;
+  line-height: 1.4;
 }
 </style>
