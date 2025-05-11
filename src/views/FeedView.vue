@@ -230,6 +230,30 @@
             </div>
             <p class="post-text">{{ post.content }}</p>
           </div>
+          <!-- Voting arrows: only show in group view under a challenge -->
+          <div
+            v-if="isViewingGroupPosts && currentChallenge"
+            class="post-voting"
+          >
+            <button
+              @click="upvotePost(post)"
+              class="vote-btn upvote"
+              :class="{ active: getUserVoteState(post) === 'up' }"
+              title="Upvote"
+            >
+              ▲
+              <span class="vote-count upvote-count">{{ post.vote?.upVotes || 0 }}</span>
+            </button>
+            <button
+              @click="downvotePost(post)"
+              class="vote-btn downvote"
+              :class="{ active: getUserVoteState(post) === 'down' }"
+              title="Downvote"
+            >
+              ▼
+              <span class="vote-count downvote-count">{{ post.vote?.downVotes || 0 }}</span>
+            </button>
+          </div>
           <div class="post-comments">
             <button
               class="toggle-comments-btn"
@@ -418,12 +442,22 @@ interface Comment {
   createdAt: string
 }
 
+interface Vote {
+  id: string
+  upVotes: number
+  downVotes: number
+  userIdsUpVoted: string[]
+  userIdsDownVoted: string[]
+}
+
 interface Post {
   id: string
   title: string
   content: string
   url?: string
   userId: string
+  challengeId?: string
+  vote?: Vote | null
   createdAt?: string
   updatedAt?: string
   comments?: Comment[]
@@ -711,11 +745,21 @@ const fetchPosts = async () => {
       }
     })
     console.log('Fetched posts:', response.data)
-    posts.value = response.data
+
+    // Ensure each post has a properly structured vote object
+    posts.value = response.data.map((post: Post) => ({
+      ...post,
+      vote: post.vote ? {
+        id: post.vote.id,
+        upVotes: post.vote.upVotes,
+        downVotes: post.vote.downVotes,
+        userIdsUpVoted: post.vote.userIdsUpVoted || [],
+        userIdsDownVoted: post.vote.userIdsDownVoted || []
+      } : null
+    }))
 
     // Fetch comments for each post
     for (const post of posts.value) {
-      console.log('Fetching comments for post:', post.id)
       await fetchComments(post.id)
     }
   } catch (err) {
@@ -724,6 +768,46 @@ const fetchPosts = async () => {
   } finally {
     loading.value = false
   }
+}
+
+const refreshVotes = async (postId: string) => {
+  try {
+    const token = localStorage.getItem('token')
+    if (!token) return
+
+    const response = await axios.get(`http://localhost:8090/api/v1/post/${postId}/votes`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+
+    console.log('Vote response for post', postId, ':', response.data)
+
+    const post = posts.value.find(p => p.id === postId)
+    if (post) {
+      post.vote = {
+        id: response.data.id,
+        upVotes: response.data.upVotes,
+        downVotes: response.data.downVotes,
+        userIdsUpVoted: response.data.userIdsUpVoted || [],
+        userIdsDownVoted: response.data.userIdsDownVoted || []
+      }
+      console.log('Updated post vote data:', post.vote)
+    }
+  } catch (err) {
+    console.error('Error refreshing votes:', err)
+  }
+}
+
+// Helper function to get vote count
+const voteCount = (post: Post, type: 'up' | 'down') => {
+  if (!post.vote) {
+    console.log('No vote data for post:', post.id)
+    return 0
+  }
+  const count = type === 'up' ? post.vote.upVotes : post.vote.downVotes
+  console.log(`Vote count for post ${post.id} (${type}):`, count)
+  return count || 0
 }
 
 const fetchUsers = async () => {
@@ -987,12 +1071,35 @@ const fetchGroupPosts = async (groupId: string) => {
     const token = localStorage.getItem('token')
     if (!token) return
 
+    console.log('Fetching group posts for group:', groupId)
     const response = await axios.get(`http://localhost:8090/api/v1/groups/posts/${groupId}`, {
       headers: {
         'Authorization': `Bearer ${token}`
       }
     })
-    posts.value = response.data
+
+    console.log('Raw group posts response:', JSON.stringify(response.data, null, 2))
+
+    // Map the response data directly since it already has the correct structure
+    posts.value = response.data.map((post: Post) => ({
+      id: post.id,
+      title: post.title,
+      content: post.content,
+      url: post.url,
+      userId: post.userId,
+      challengeId: post.challengeId,
+      createdAt: post.createdAt,
+      updatedAt: post.updatedAt,
+      vote: post.vote ? {
+        id: post.vote.id,
+        upVotes: post.vote.upVotes,
+        downVotes: post.vote.downVotes,
+        userIdsUpVoted: post.vote.userIdsUpVoted || [],
+        userIdsDownVoted: post.vote.userIdsDownVoted || []
+      } : null
+    }))
+
+    console.log('Processed posts with votes:', JSON.stringify(posts.value, null, 2))
 
     // Fetch comments for each post
     for (const post of posts.value) {
@@ -1122,6 +1229,78 @@ const handleImageUpload = (event: Event) => {
       }
     }
     reader.readAsDataURL(input.files[0])
+  }
+}
+
+const currentUserId = localStorage.getItem('userId') || ''
+
+function getUserVoteState(post: Post): 'up' | 'down' | null {
+  if (!post.vote) return null
+  const currentUserId = localStorage.getItem('userId')
+  if (!currentUserId) return null
+
+  if (post.vote.userIdsUpVoted?.includes(currentUserId)) return 'up'
+  if (post.vote.userIdsDownVoted?.includes(currentUserId)) return 'down'
+  return null
+}
+
+const upvotePost = async (post: Post) => {
+  try {
+    const token = localStorage.getItem('token')
+    if (!token) return
+
+    const response = await axios.post(`http://localhost:8090/api/v1/post/${post.id}/upvote`, {}, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+
+    // Update the vote count directly from the response
+    if (post.vote) {
+      post.vote.upVotes = response.data
+    } else {
+      post.vote = {
+        id: '',
+        upVotes: response.data,
+        downVotes: 0,
+        userIdsUpVoted: [],
+        userIdsDownVoted: []
+      }
+    }
+
+    // Refresh the full vote state to get updated userIdsUpVoted and userIdsDownVoted
+    await refreshVotes(post.id)
+  } catch (err) {
+    console.error('Error upvoting post:', err)
+    showModal('Failed to upvote post', false)
+  }
+}
+
+const downvotePost = async (post: Post) => {
+  try {
+    const token = localStorage.getItem('token')
+    if (!token) return
+
+    const response = await axios.post(`http://localhost:8090/api/v1/post/${post.id}/downvote`, {}, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+
+    // Update the vote count directly from the response
+    if (post.vote) {
+      post.vote.downVotes = response.data
+    } else {
+      post.vote = {
+        id: '',
+        upVotes: 0,
+        downVotes: response.data,
+        userIdsUpVoted: [],
+        userIdsDownVoted: []
+      }
+    }
+
+    // Refresh the full vote state to get updated userIdsUpVoted and userIdsDownVoted
+    await refreshVotes(post.id)
+  } catch (err) {
+    console.error('Error downvoting post:', err)
+    showModal('Failed to downvote post', false)
   }
 }
 
@@ -2025,7 +2204,8 @@ onUnmounted(() => {
   cursor: pointer;
   transition: all 0.2s;
   margin-top: 1.5rem;
-  width: fit-content;
+  text-decoration: none;
+  width: 100%;
 }
 
 .add-post-btn:hover {
@@ -2265,5 +2445,51 @@ onUnmounted(() => {
 
 .create-post-btn i {
   font-size: 1.2rem;
+}
+
+.post-voting {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+  margin-bottom: 1rem;
+}
+
+.vote-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #bbb;
+  transition: color 0.2s, background 0.2s;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+}
+
+.vote-btn.upvote.active {
+  color: #2c5282;
+  background: rgba(44, 82, 130, 0.1);
+}
+
+.vote-btn.downvote.active {
+  color: #b02b2b;
+  background: rgba(176, 43, 43, 0.1);
+}
+
+.vote-count {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-left: 0.3rem;
+}
+
+.upvote-count {
+  color: #2c5282;
+}
+
+.downvote-count {
+  color: #b02b2b;
 }
 </style>
