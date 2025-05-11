@@ -62,45 +62,31 @@
 
       <!-- Groups Tab -->
       <div v-if="activeTab === 'groups'" class="groups-section">
-        <div class="create-group">
-          <input
-            v-model="newGroupName"
-            type="text"
-            placeholder="Enter group name"
-            class="group-input"
-          />
-          <button
-            @click="createGroup"
-            class="create-group-btn"
-            :disabled="!newGroupName"
-          >
-            Create Group
-          </button>
+        <!-- User's Joined Groups -->
+        <div v-if="userJoinedGroups.length > 0" class="groups-section-header">
+          <h3>My Groups</h3>
         </div>
-
         <div class="groups-list">
-          <div v-for="group in groups" :key="group.id" class="group-item">
+          <div v-for="group in userJoinedGroups" :key="group.id" class="group-item">
             <div class="group-info">
               <span class="group-name">{{ group.name }}</span>
               <div class="group-details">
                 <span class="group-admin">Admin: {{ group.admin?.name || 'Unknown' }}</span>
-                <span class="group-members">Members: {{ group.members?.length || 0 }}</span>
+                <span class="group-members">Members: {{ group.userList?.length || 0 }}</span>
               </div>
             </div>
             <div class="group-actions">
               <button
-                v-if="isGroupMember(group)"
+                @click="viewGroupDetails(group.id)"
+                class="group-btn details"
+              >
+                Details
+              </button>
+              <button
                 @click="leaveGroup(group.id)"
                 class="group-btn leave"
               >
                 Leave
-              </button>
-              <button
-                v-else
-                @click="joinGroup(group.id)"
-                class="group-btn join"
-              >
-                Join
               </button>
               <button
                 v-if="isGroupAdmin(group)"
@@ -112,13 +98,98 @@
             </div>
           </div>
         </div>
+
+        <!-- Other Groups -->
+        <div class="groups-section-header">
+          <h3>Other Groups ({{ otherGroups.length }})</h3>
+        </div>
+        <div class="groups-list">
+          <div v-if="!otherGroups || otherGroups.length === 0" class="no-groups">
+            <p>No other groups available</p>
+          </div>
+          <div v-else v-for="group in otherGroups" :key="group.id" class="group-item">
+            <div class="group-info">
+              <span class="group-name">{{ group.name }}</span>
+              <div class="group-details">
+                <span class="group-admin">Admin: {{ group.admin?.name || 'Unknown' }}</span>
+                <span class="group-members">Members: {{ group.userList?.length || 0 }}</span>
+              </div>
+            </div>
+            <div class="group-actions">
+              <button
+                @click="joinGroup(group.id)"
+                class="group-btn join"
+              >
+                Join
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- No Groups Message -->
+        <div v-if="userJoinedGroups.length === 0 && (!otherGroups || otherGroups.length === 0)" class="no-groups">
+          <p>No groups available</p>
+        </div>
       </div>
     </div>
 
     <!-- Feed section -->
     <div class="feed-section">
       <div class="feed-header">
-        <h1>Feed</h1>
+        <div class="feed-title">
+          <h1>{{ isViewingGroupPosts ? currentGroupName + ' Posts' : 'Feed' }}</h1>
+          <button
+            v-if="isViewingGroupPosts"
+            @click="returnToNormalFeed"
+            class="return-feed-btn"
+          >
+            <i class="fas fa-arrow-left"></i>
+            Return to Feed
+          </button>
+        </div>
+      </div>
+
+      <!-- Challenge Section -->
+      <div v-if="isViewingGroupPosts" class="challenge-section">
+        <div v-if="currentChallenge" class="current-challenge">
+          <div class="challenge-header">
+            <div class="challenge-title-section">
+              <h3>Current Challenge</h3>
+              <span class="challenge-badge">{{ currentChallenge.challengeRewardTag }}</span>
+            </div>
+            <div class="challenge-points">
+              <i class="fas fa-star"></i>
+              <span>{{ currentChallenge.point }} points</span>
+            </div>
+          </div>
+          <div class="challenge-content">
+            <h4 class="challenge-title">{{ currentChallenge.title }}</h4>
+            <p class="challenge-description">{{ currentChallenge.content }}</p>
+            <div class="challenge-meta">
+              <div class="meta-item creator">
+                <i class="fas fa-user"></i>
+                <div class="meta-content">
+                  <span class="meta-label">Created by</span>
+                  <span class="meta-value">{{ currentChallenge.createdBy }}</span>
+                </div>
+              </div>
+              <div class="meta-item deadline">
+                <i class="fas fa-clock"></i>
+                <div class="meta-content">
+                  <span class="meta-label">Ends in</span>
+                  <span class="meta-value">{{ formatDate(currentChallenge.endTime) }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div v-else class="no-challenge">
+          <div class="no-challenge-content">
+            <i class="fas fa-trophy"></i>
+            <p>No active challenge for this group</p>
+            <span class="no-challenge-subtext">Check back later for new challenges!</span>
+          </div>
+        </div>
       </div>
 
       <ErrorModal
@@ -131,10 +202,9 @@
         <p>Loading posts...</p>
       </div>
 
-
       <div v-else-if="!posts || posts.length === 0" class="no-posts">
-        <p>No posts available yet.</p>
-        <router-link to="/create-post" class="create-first-post-btn">
+        <p>{{ isViewingGroupPosts ? 'No posts in this group yet.' : 'No posts available yet.' }}</p>
+        <router-link v-if="!isViewingGroupPosts" to="/create-post" class="create-first-post-btn">
           Create First Post
         </router-link>
       </div>
@@ -245,6 +315,68 @@
       :is-success="isModalSuccess"
       @close="modalMessage = ''"
     />
+
+    <!-- Add Post Modal -->
+    <div v-if="showPostModal" class="modal-overlay">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Create New Post</h3>
+          <button @click="showPostModal = false" class="close-btn">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="post-title">Title</label>
+            <input
+              id="post-title"
+              v-model="newPostTitle"
+              type="text"
+              placeholder="Enter post title"
+              class="form-input"
+            />
+          </div>
+          <div class="form-group">
+            <label for="post-content">Content</label>
+            <textarea
+              id="post-content"
+              v-model="newPostContent"
+              placeholder="Enter post content"
+              class="form-textarea"
+            ></textarea>
+          </div>
+          <div class="form-group">
+            <label for="post-image">Image</label>
+            <div class="image-upload">
+              <input
+                id="post-image"
+                type="file"
+                accept="image/*"
+                @change="handleImageUpload"
+                class="file-input"
+              />
+              <div v-if="newPostImage" class="image-preview">
+                <img :src="newPostImage" alt="Preview" />
+                <button @click="newPostImage = null" class="remove-image">
+                  <i class="fas fa-times"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button @click="showPostModal = false" class="cancel-btn">Cancel</button>
+          <button
+            @click="createPost"
+            :disabled="isUploading || !newPostTitle || !newPostContent || !newPostImage"
+            class="submit-btn"
+          >
+            <span v-if="isUploading">Creating...</span>
+            <span v-else>Create Post</span>
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -254,6 +386,7 @@ import { ref, onMounted, onUnmounted, computed } from 'vue'
 import axios from 'axios'
 import ErrorModal from '@/components/ErrorModal.vue'
 import ActionModal from '@/components/ActionModal.vue'
+import { useRouter } from 'vue-router'
 
 interface Comment {
   id: string
@@ -285,8 +418,30 @@ interface User {
 interface Group {
   id: string
   name: string
+  challengeIds: string[]
+  accessRoles: string[]
   admin: User
-  members: User[]
+  userList: User[]
+}
+
+interface UserGroup {
+  id: string
+  name: string
+  challengeIds: string[]
+  accessRoles: string[]
+  admin: User
+  userList: User[]
+}
+
+interface Challenge {
+  id: string
+  title: string
+  content: string
+  groupId: string
+  createdBy: string
+  point: number
+  challengeRewardTag: string
+  endTime: string
 }
 
 const isCameraActive = ref<Record<string, boolean>>({})
@@ -317,9 +472,8 @@ const followingUsersList = ref<User[]>([])
 const followersList = ref<User[]>([])
 
 // Add new refs for groups
-const newGroupName = ref('')
-const groups = ref<Group[]>([])
-const myGroups = ref<Set<string>>(new Set())
+const userJoinedGroups = ref<Group[]>([])
+const otherGroups = ref<Group[]>([])
 
 // Add new refs for modal
 const modalMessage = ref('')
@@ -327,6 +481,23 @@ const isModalSuccess = ref(true)
 
 // Add new ref for comments visibility
 const isCommentsVisible = ref<Record<string, boolean>>({})
+
+// Add new refs after other refs
+const isViewingGroupPosts = ref(false)
+const currentGroupId = ref('')
+const currentGroupName = ref('')
+
+// Add new ref for current challenge
+const currentChallenge = ref<Challenge | null>(null)
+
+// Add new refs for post creation
+const showPostModal = ref(false)
+const newPostTitle = ref('')
+const newPostContent = ref('')
+const newPostImage = ref<string | null>(null)
+const isUploading = ref(false)
+
+const router = useRouter()
 
 const formatDate = (dateString?: string) => {
   if (!dateString) return 'N/A'
@@ -510,7 +681,7 @@ const fetchPosts = async () => {
       return
     }
 
-    const response = await axios.get('http://localhost:8090/api/v1/post/all', {
+    const response = await axios.get('http://localhost:8090/api/v1/feed', {
       headers: {
         'Authorization': `Bearer ${token}`
       }
@@ -648,46 +819,29 @@ const nonFollowingUsers = computed(() => {
 // Add group-related functions
 const fetchGroups = async () => {
   try {
-    console.log('Fetching groups...')
     const token = localStorage.getItem('token')
-    if (!token) {
-      console.log('No token found for fetching groups')
-      return
-    }
+    if (!token) return
 
-    const response = await axios.get('http://localhost:8090/api/v1/groups/all', {
+    // Fetch user's joined groups
+    const userGroupsResponse = await axios.get('http://localhost:8090/api/v1/auth/user-groups', {
       headers: {
         'Authorization': `Bearer ${token}`
       }
     })
-    console.log('Fetched groups:', response.data)
-    groups.value = response.data.map((group: any) => ({
-      ...group,
-      members: group.members || [],
-      admin: group.admin || { name: 'Unknown' }
-    }))
+    userJoinedGroups.value = userGroupsResponse.data.groupIds || []
+
+    // Fetch all other groups
+    const allGroupsResponse = await axios.get('http://localhost:8090/api/v1/groups', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    console.log('Other groups response:', allGroupsResponse.data)
+    otherGroups.value = allGroupsResponse.data
+    console.log('Other groups after assignment:', otherGroups.value)
   } catch (err) {
     console.error('Error fetching groups:', err)
     error.value = 'Failed to load groups'
-  }
-}
-
-const createGroup = async () => {
-  try {
-    const token = localStorage.getItem('token')
-    if (!token || !newGroupName.value) return
-
-    await axios.post(`http://localhost:8090/api/v1/groups/create?name=${encodeURIComponent(newGroupName.value)}`, {}, {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
-    })
-
-    newGroupName.value = ''
-    await fetchGroups()
-    showModal('Group created successfully!')
-  } catch (err) {
-    showModal('Failed to create group', false)
   }
 }
 
@@ -745,11 +899,6 @@ const deleteGroup = async (groupId: string) => {
   }
 }
 
-const isGroupMember = (group: Group): boolean => {
-  const currentUsername = getCurrentUsername()
-  return group.members?.some(member => member.name === currentUsername) || false
-}
-
 const isGroupAdmin = (group: Group): boolean => {
   const currentUsername = getCurrentUsername()
   return group.admin?.name === currentUsername
@@ -769,6 +918,223 @@ const showModal = (message: string, success: boolean = true) => {
 // Add toggle function
 const toggleComments = (postId: string) => {
   isCommentsVisible.value[postId] = !isCommentsVisible.value[postId]
+}
+
+// Add the viewGroupDetails function
+const viewGroupDetails = async (groupId: string) => {
+  try {
+    console.log('Viewing group details for:', groupId)
+    const group = userJoinedGroups.value.find(g => g.id === groupId) ||
+                  otherGroups.value.find(g => g.id === groupId)
+
+    if (group) {
+      console.log('Found group:', group)
+      currentGroupId.value = groupId
+      currentGroupName.value = group.name
+      isViewingGroupPosts.value = true
+
+      // First fetch the challenge
+      await fetchGroupChallenge(groupId)
+      console.log('Challenge fetch completed')
+
+      // Then fetch the posts
+      await fetchGroupPosts(groupId)
+      console.log('Posts fetch completed')
+    } else {
+      console.error('Group not found:', groupId)
+    }
+  } catch (err) {
+    console.error('Error in viewGroupDetails:', err)
+  }
+}
+
+// Add function to return to normal feed
+const returnToNormalFeed = async () => {
+  isViewingGroupPosts.value = false
+  currentGroupId.value = ''
+  currentGroupName.value = ''
+  currentChallenge.value = null
+  await fetchPosts()
+}
+
+// Add new function to fetch group posts
+const fetchGroupPosts = async (groupId: string) => {
+  try {
+    const token = localStorage.getItem('token')
+    if (!token) return
+
+    const response = await axios.get(`http://localhost:8090/api/v1/groups/posts/${groupId}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    posts.value = response.data
+
+    // Fetch comments for each post
+    for (const post of posts.value) {
+      await fetchComments(post.id)
+    }
+  } catch (err) {
+    console.error('Error fetching group posts:', err)
+    error.value = 'Failed to load group posts'
+  }
+}
+
+// Add function to fetch group challenge
+const fetchGroupChallenge = async (groupId: string) => {
+  try {
+    const token = localStorage.getItem('token')
+    if (!token) {
+      console.error('No token found')
+      return
+    }
+
+    console.log('Fetching challenge for group:', groupId)
+    const url = `http://localhost:8090/api/v1/groups/last-challenge/${groupId}`
+    console.log('Request URL:', url)
+
+    const response = await axios.get(url, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+
+    console.log('Challenge response status:', response.status)
+    console.log('Challenge response data:', response.data)
+
+    if (response.data) {
+      currentChallenge.value = response.data
+      console.log('Challenge set to:', currentChallenge.value)
+    } else {
+      console.log('No challenge data in response')
+      currentChallenge.value = null
+    }
+  } catch (err: any) {
+    console.error('Error fetching group challenge:', err)
+    if (err.response) {
+      console.error('Error response:', {
+        status: err.response.status,
+        data: err.response.data
+      })
+    }
+    currentChallenge.value = null
+  }
+}
+
+// Add function to handle post creation
+const createPost = async () => {
+  try {
+    if (!newPostTitle.value || !newPostContent.value || !newPostImage.value) {
+      showModal('Please fill in all fields and add an image', false)
+      return
+    }
+
+    isUploading.value = true
+    const token = localStorage.getItem('token')
+    if (!token) {
+      showModal('Please log in to create a post', false)
+      return
+    }
+
+    if (!currentChallenge.value?.id) {
+      showModal('No active challenge found', false)
+      return
+    }
+
+    const response = await axios.post(
+      'http://localhost:8090/api/v1/post',
+      {
+        title: newPostTitle.value,
+        content: newPostContent.value,
+        challengeId: currentChallenge.value.id,
+        imageContent: newPostImage.value.split(',')[1] // Remove the data:image/jpeg;base64, prefix
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    )
+
+    showModal('Post created successfully!')
+    showPostModal.value = false
+    resetPostForm()
+    await fetchGroupPosts(currentGroupId.value)
+  } catch (err) {
+    console.error('Error creating post:', err)
+    showModal('Failed to create post', false)
+  } finally {
+    isUploading.value = false
+  }
+}
+
+// Add new function to handle camera for post creation
+const setupPostCamera = async () => {
+  try {
+    const localStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user' },
+      audio: false
+    })
+
+    const video = document.createElement('video')
+    video.srcObject = localStream
+    video.play()
+    stream.value = localStream
+
+    // Create canvas for capturing
+    const canvas = document.createElement('canvas')
+    const context = canvas.getContext('2d')
+
+    // Wait for video to be ready
+    await new Promise((resolve) => {
+      video.onloadedmetadata = () => {
+        canvas.width = video.videoWidth
+        canvas.height = video.videoHeight
+        resolve(null)
+      }
+    })
+
+    // Draw video frame to canvas
+    context?.drawImage(video, 0, 0, canvas.width, canvas.height)
+    const imageData = canvas.toDataURL('image/jpeg')
+    newPostImage.value = imageData
+
+    // Stop the camera stream
+    if (stream.value) {
+      stream.value.getTracks().forEach(track => track.stop())
+      stream.value = null
+    }
+
+    // Show the post modal after capturing
+    showPostModal.value = true
+  } catch (err) {
+    console.error('Error accessing camera:', err)
+    showModal('Could not access camera', false)
+  }
+}
+
+// Update the add post button click handler
+const handleAddPostClick = () => {
+  setupPostCamera()
+}
+
+const resetPostForm = () => {
+  newPostTitle.value = ''
+  newPostContent.value = ''
+  newPostImage.value = null
+}
+
+const handleImageUpload = (event: Event) => {
+  const input = event.target as HTMLInputElement
+  if (input.files && input.files[0]) {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      if (e.target?.result) {
+        newPostImage.value = e.target.result as string
+      }
+    }
+    reader.readAsDataURL(input.files[0])
+  }
 }
 
 onMounted(async () => {
@@ -910,14 +1276,16 @@ onUnmounted(() => {
 }
 
 .feed-section {
-  min-width: 0; /* Prevents grid item from overflowing */
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
 }
 
 .feed-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
   padding: 1rem 0;
   border-bottom: 1px solid #333;
 }
@@ -1408,6 +1776,15 @@ onUnmounted(() => {
   background: #b02b2b;
 }
 
+.group-btn.details {
+  background: #2c5282;
+  color: #fff;
+}
+
+.group-btn.details:hover {
+  background: #2b6cb0;
+}
+
 .group-details {
   display: flex;
   flex-direction: column;
@@ -1423,5 +1800,411 @@ onUnmounted(() => {
 
 .group-admin {
   color: #2c5282;
+}
+
+.groups-section-header {
+  margin: 1.5rem 0 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #333;
+}
+
+.groups-section-header h3 {
+  color: #fff;
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+.no-groups {
+  text-align: center;
+  padding: 2rem;
+  color: #666;
+  background: #1a1a1a;
+  border-radius: 8px;
+  margin-top: 1rem;
+}
+
+.feed-title {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.return-feed-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  background: #2c5282;
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  padding: 1rem 1.5rem;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 500;
+  transition: all 0.2s;
+  margin-top: 1.5rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.return-feed-btn:hover {
+  background: #2b6cb0;
+  transform: translateX(-4px);
+}
+
+.return-feed-btn i {
+  font-size: 1rem;
+}
+
+.challenge-section {
+  margin: 0;
+  max-width: 100%;
+}
+
+.current-challenge {
+  background: linear-gradient(145deg, #1a1a1a, #222);
+  border-radius: 16px;
+  padding: 2rem;
+  border: 1px solid #333;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s ease;
+}
+
+.current-challenge:hover {
+  transform: translateY(-2px);
+}
+
+.challenge-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.challenge-title-section {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.challenge-header h3 {
+  color: #fff;
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.challenge-badge {
+  background: linear-gradient(135deg, #2c5282, #2b6cb0);
+  color: #fff;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.challenge-points {
+  background: rgba(44, 82, 130, 0.2);
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #fff;
+  font-weight: 500;
+}
+
+.challenge-points i {
+  color: #f6e05e;
+}
+
+.challenge-content {
+  color: #ddd;
+}
+
+.challenge-title {
+  color: #fff;
+  margin: 0 0 1rem 0;
+  font-size: 1.4rem;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+.challenge-description {
+  margin: 0 0 1.5rem 0;
+  font-size: 1rem;
+  color: #bbb;
+  line-height: 1.6;
+  letter-spacing: 0.2px;
+}
+
+.challenge-meta {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 1.5rem;
+  border-radius: 12px;
+  backdrop-filter: blur(4px);
+}
+
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  color: #888;
+}
+
+.meta-item i {
+  color: #2c5282;
+  font-size: 1.2rem;
+  background: rgba(44, 82, 130, 0.2);
+  padding: 0.8rem;
+  border-radius: 12px;
+}
+
+.meta-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.meta-label {
+  font-size: 0.8rem;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.meta-value {
+  font-size: 1rem;
+  color: #fff;
+  font-weight: 500;
+}
+
+.no-challenge {
+  background: linear-gradient(145deg, #1a1a1a, #222);
+  border-radius: 16px;
+  padding: 3rem 2rem;
+  text-align: center;
+  color: #666;
+  border: 1px solid #333;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+}
+
+.no-challenge-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.no-challenge i {
+  font-size: 3rem;
+  color: #2c5282;
+  margin-bottom: 0.5rem;
+  opacity: 0.8;
+}
+
+.no-challenge p {
+  margin: 0;
+  font-size: 1.2rem;
+  color: #fff;
+  font-weight: 500;
+}
+
+.no-challenge-subtext {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.add-post-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #2c5282;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.8rem 1.2rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 1.5rem;
+  width: fit-content;
+}
+
+.add-post-btn:hover {
+  background: #2b6cb0;
+  transform: translateY(-2px);
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: #1a1a1a;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid #333;
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: #fff;
+  font-size: 1.2rem;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  font-size: 1.2rem;
+  padding: 0.5rem;
+  transition: color 0.2s;
+}
+
+.close-btn:hover {
+  color: #fff;
+}
+
+.modal-body {
+  padding: 1.5rem;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #fff;
+  font-size: 0.9rem;
+}
+
+.form-input,
+.form-textarea {
+  width: 100%;
+  padding: 0.8rem;
+  background: #222;
+  border: 1px solid #333;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 0.9rem;
+}
+
+.form-textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.image-upload {
+  border: 2px dashed #333;
+  border-radius: 6px;
+  padding: 1rem;
+  text-align: center;
+}
+
+.file-input {
+  display: none;
+}
+
+.image-preview {
+  position: relative;
+  margin-top: 1rem;
+}
+
+.image-preview img {
+  max-width: 100%;
+  max-height: 200px;
+  border-radius: 6px;
+}
+
+.remove-image {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background: rgba(0, 0, 0, 0.5);
+  border: none;
+  color: #fff;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-footer {
+  padding: 1.5rem;
+  border-top: 1px solid #333;
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+}
+
+.cancel-btn,
+.submit-btn {
+  padding: 0.8rem 1.5rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.cancel-btn {
+  background: #333;
+  color: #fff;
+  border: none;
+}
+
+.cancel-btn:hover {
+  background: #444;
+}
+
+.submit-btn {
+  background: #2c5282;
+  color: #fff;
+  border: none;
+}
+
+.submit-btn:hover:not(:disabled) {
+  background: #2b6cb0;
+}
+
+.submit-btn:disabled {
+  background: #1a365d;
+  cursor: not-allowed;
+  opacity: 0.7;
 }
 </style>
