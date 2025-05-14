@@ -69,7 +69,12 @@ const login = async () => {
     })
 
     if (response) {
-      await router.push('/feed')
+      // Redirect based on user role
+      if (response.user.isAdmin) {
+        await router.push('/admin')
+      } else {
+        await router.push('/feed')
+      }
     } else {
       error.value = 'Login failed: No response received'
     }

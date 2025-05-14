@@ -19,42 +19,53 @@ const logout = async () => {
       </div>
       <div class="nav-links">
         <template v-if="authStore.isAuthenticated">
-          <router-link
-            to="/feed"
-            class="nav-link"
-          >
-            Feed
-          </router-link>
+          <template v-if="authStore.user?.isAdmin">
+            <router-link
+              to="/admin"
+              class="nav-link"
+            >
+              Admin Dashboard
+            </router-link>
+            <a href="#" @click.prevent="logout" class="nav-link logout">Logout</a>
+          </template>
+          <template v-else>
+            <router-link
+              to="/feed"
+              class="nav-link"
+            >
+              Feed
+            </router-link>
 
-          <router-link
-            to="/create-post"
-            class="nav-link"
-          >
-            Add Post
-          </router-link>
+            <router-link
+              to="/create-post"
+              class="nav-link"
+            >
+              Add Post
+            </router-link>
 
-          <router-link
-            to="/posts"
-            class="nav-link"
-          >
-            My Posts
-          </router-link>
+            <router-link
+              to="/posts"
+              class="nav-link"
+            >
+              My Posts
+            </router-link>
 
-          <router-link
-            to="/calendar"
-            class="nav-link"
-          >
-            Calendar
-          </router-link>
+            <router-link
+              to="/calendar"
+              class="nav-link"
+            >
+              Calendar
+            </router-link>
 
-          <router-link
-            to="/notifications"
-            class="nav-link"
-          >
-            Notifications
-          </router-link>
+            <router-link
+              to="/notifications"
+              class="nav-link"
+            >
+              Notifications
+            </router-link>
 
-          <a href="#" @click.prevent="logout" class="nav-link logout">Logout</a>
+            <a href="#" @click.prevent="logout" class="nav-link logout">Logout</a>
+          </template>
         </template>
         <template v-else>
           <router-link to="/login" class="nav-link auth-link">Login</router-link>

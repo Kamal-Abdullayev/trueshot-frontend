@@ -9,6 +9,7 @@ import PostManagement from '../views/PostManagement.vue'
 import CalendarView from '../views/CalendarView.vue'
 import NotificationsView from '../views/NotificationsView.vue'
 import GroupDetailsView from '../views/GroupDetailsView.vue'
+import AdminView from '../views/AdminView.vue'
 import { useAuthStore } from '@/stores/auth'
 
 const router = createRouter({
@@ -79,6 +80,12 @@ const router = createRouter({
       name: 'group-details',
       component: GroupDetailsView,
       meta: { requiresAuth: true }
+    },
+    {
+      path: '/admin',
+      name: 'admin',
+      component: AdminView,
+      meta: { requiresAuth: true, requiresAdmin: true }
     }
   ],
 })
@@ -86,10 +93,33 @@ const router = createRouter({
 // Navigation guard
 router.beforeEach((to, from, next) => {
   const authStore = useAuthStore();
+  const token = localStorage.getItem('token')
+  const isAuthenticated = !!token
 
-  if (to.meta.requiresAuth && !authStore.isAuthenticated) {
+  if (to.meta.requiresAuth && !isAuthenticated) {
     // Redirect to login if trying to access protected route while not authenticated
     next('/login');
+  } else if (to.meta.requiresAdmin) {
+    // Check if user is admin
+    try {
+      const tokenData = JSON.parse(atob(token!.split('.')[1]))
+      console.log('Router guard - Token data:', tokenData);
+      
+      // Check if user is admin based on username
+      const isAdmin = tokenData.sub === 'admin';
+      console.log('Router guard - Is admin:', isAdmin);
+      
+      if (isAdmin) {
+        console.log('Router guard - User is admin, proceeding to admin page');
+        next()
+      } else {
+        console.log('Router guard - User is not admin, redirecting to feed');
+        next('/feed')
+      }
+    } catch (error) {
+      console.error('Router guard - Error checking admin status:', error);
+      next('/login')
+    }
   } else {
     next();
   }
