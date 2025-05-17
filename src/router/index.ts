@@ -112,7 +112,7 @@ router.beforeEach((to, from, next) => {
       const tokenData = JSON.parse(atob(token!.split('.')[1]))
       console.log('Router guard - Token data:', tokenData);
       
-      // Check if user is admin based on username
+      // Check if username is admin
       const isAdmin = tokenData.sub === 'admin';
       console.log('Router guard - Is admin:', isAdmin);
       
@@ -126,6 +126,20 @@ router.beforeEach((to, from, next) => {
     } catch (error) {
       console.error('Router guard - Error checking admin status:', error);
       next('/login')
+    }
+  } else if (to.path === '/feed' || to.path === '/home') {
+    // Check if user is admin and redirect to admin page
+    try {
+      const tokenData = JSON.parse(atob(token!.split('.')[1]))
+      if (tokenData.sub === 'admin') {
+        console.log('Router guard - Admin user detected, redirecting to admin page');
+        next('/admin')
+      } else {
+        next()
+      }
+    } catch (error) {
+      console.error('Router guard - Error checking admin status:', error);
+      next()
     }
   } else {
     next();
