@@ -8,12 +8,13 @@
       ></div>
       <div class="relative z-10 max-w-3xl">
         <h1 class="text-5xl sm:text-6xl font-bold mb-6 leading-tight">
-          Share Life’s Moments with <span class="text-indigo-500">TrueShot</span>
+          Share Life's Moments with <span class="text-indigo-500">TrueShot</span>
         </h1>
         <p class="text-lg sm:text-xl text-gray-300 mb-10">
           TrueShot meets creativity – post authentic photos at the moment it matters most.
         </p>
-        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+        <!-- Show different buttons based on auth status -->
+        <div v-if="!isAuthenticated" class="flex flex-col sm:flex-row gap-4 justify-center">
           <router-link
             to="/login"
             class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3 px-8 rounded-xl shadow"
@@ -27,11 +28,25 @@
             Register
           </router-link>
         </div>
+        <div v-else class="flex flex-col sm:flex-row gap-4 justify-center">
+          <router-link
+            to="/feed"
+            class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3 px-8 rounded-xl shadow"
+          >
+            Go to Feed
+          </router-link>
+          <button
+            @click="logout"
+            class="bg-white hover:bg-gray-100 text-black font-semibold py-3 px-8 rounded-xl shadow"
+          >
+            Logout
+          </button>
+        </div>
       </div>
     </div>
 
-    <!-- Features Section -->
-    <section class="py-20 bg-gray-900 px-6">
+    <!-- Features Section - Only show to non-authenticated users -->
+    <section v-if="!isAuthenticated" class="py-20 bg-gray-900 px-6">
       <div class="max-w-6xl mx-auto text-center">
         <h2 class="text-3xl sm:text-4xl font-bold mb-12">Why Choose TrueShot?</h2>
         <div class="grid gap-10 sm:grid-cols-3 text-left">
@@ -51,25 +66,8 @@
       </div>
     </section>
 
-    <!-- Testimonials -->
-    <section class="py-20 bg-black px-6">
-      <div class="max-w-4xl mx-auto text-center">
-        <h2 class="text-3xl sm:text-4xl font-bold mb-12">What Users Say</h2>
-        <div class="grid gap-10 sm:grid-cols-2 text-left">
-          <div class="bg-gray-800 p-6 rounded-xl shadow">
-            <p class="text-gray-300 italic">“TrueShot helps me stay in touch with my real self and real friends.”</p>
-            <div class="mt-4 font-semibold text-indigo-400">– Emily R.</div>
-          </div>
-          <div class="bg-gray-800 p-6 rounded-xl shadow">
-            <p class="text-gray-300 italic">“Finally a social app that doesn’t feel fake or overwhelming.”</p>
-            <div class="mt-4 font-semibold text-indigo-400">– Jason K.</div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- CTA Section -->
-    <section class="py-20 bg-indigo-600 px-6 text-center">
+    <!-- CTA Section - Only show to non-authenticated users -->
+    <section v-if="!isAuthenticated" class="py-20 bg-indigo-600 px-6 text-center">
       <div class="max-w-2xl mx-auto">
         <h2 class="text-3xl sm:text-4xl font-bold mb-6">Join TrueShot Today</h2>
         <p class="text-lg text-white mb-8">Be real, be seen. Start capturing your life with honesty.</p>
@@ -90,5 +88,28 @@
 </template>
 
 <script setup lang="ts">
-// No script logic needed
+import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
+const isAuthenticated = ref(false)
+
+onMounted(() => {
+  // Check if user is authenticated by looking for token
+  const token = localStorage.getItem('token')
+  isAuthenticated.value = !!token
+})
+
+const logout = () => {
+  // Clear authentication data
+  localStorage.removeItem('token')
+  localStorage.removeItem('userId')
+  localStorage.removeItem('username')
+  
+  // Update authentication status
+  isAuthenticated.value = false
+  
+  // Redirect to welcome page
+  router.push('/')
+}
 </script>

@@ -99,6 +99,31 @@
           </div>
         </div>
 
+        <!-- Exclusive Groups Section -->
+        <div v-if="exclusiveGroups.length > 0" class="groups-section-header">
+          <h3>Exclusive Groups</h3>
+        </div>
+        <div class="groups-list">
+          <div v-for="group in exclusiveGroups" :key="group.id" class="group-item">
+            <div class="group-info">
+              <span class="group-name">{{ group.name }}</span>
+              <div class="group-details">
+                <span class="group-admin">Admin: {{ group.admin?.name || 'Unknown' }}</span>
+                <span class="group-members">Members: {{ group.userList?.length || 0 }}</span>
+                <span class="group-exclusive">Exclusive Group</span>
+              </div>
+            </div>
+            <div class="group-actions">
+              <button
+                @click="joinGroup(group.id)"
+                class="group-btn join"
+              >
+                Join
+              </button>
+            </div>
+          </div>
+        </div>
+
         <!-- Other Groups -->
         <div class="groups-section-header">
           <h3>Other Groups ({{ otherGroups.length }})</h3>
@@ -529,6 +554,7 @@ const followersList = ref<User[]>([])
 // Add new refs for groups
 const userJoinedGroups = ref<Group[]>([])
 const otherGroups = ref<Group[]>([])
+const exclusiveGroups = ref<Group[]>([])
 
 // Add new refs for modal
 const modalMessage = ref('')
@@ -945,7 +971,20 @@ const fetchGroups = async () => {
       }
     })
     console.log('Other groups response:', allGroupsResponse.data)
-    otherGroups.value = allGroupsResponse.data
+    
+    // Filter exclusive groups
+    const currentUserId = JSON.parse(localStorage.getItem('user') || '{}').userId
+    exclusiveGroups.value = allGroupsResponse.data.filter((group: Group) => 
+      group.exclusive && 
+      group.allowedUsers?.some(user => user.id === currentUserId)
+    )
+    
+    // Filter out exclusive groups from otherGroups
+    otherGroups.value = allGroupsResponse.data.filter((group: Group) => 
+      !group.exclusive || 
+      !group.allowedUsers?.some(user => user.id === currentUserId)
+    )
+    
     console.log('Other groups after assignment:', otherGroups.value)
   } catch (err) {
     console.error('Error fetching groups:', err)
@@ -2495,5 +2534,15 @@ onUnmounted(() => {
 
 .downvote-count {
   color: #b02b2b;
+}
+
+.group-exclusive {
+  font-size: 0.8rem;
+  color: #f6e05e;
+  background: rgba(246, 224, 94, 0.1);
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  margin-top: 0.3rem;
+  display: inline-block;
 }
 </style>
