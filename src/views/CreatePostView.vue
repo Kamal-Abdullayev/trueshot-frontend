@@ -19,7 +19,7 @@
         <video ref="videoRef" class="camera-preview" autoplay playsinline></video>
         <canvas ref="canvasRef" class="camera-canvas" style="display: none;"></canvas>
         <div v-if="imagePreview" class="image-preview">
-          <img :src="imagePreview" alt="Preview" />
+          <img :src="imagePreview" alt="Preview" @load="handleImageLoad" @error="handleImageError" />
         </div>
         <div v-if="!isCameraReady && !imagePreview" class="camera-error">
           <p>Camera not available</p>
@@ -149,13 +149,24 @@ const startCamera = async () => {
 }
 
 const takePicture = () => {
-  if (!videoRef.value || !canvasRef.value) return
+  if (!videoRef.value || !canvasRef.value) {
+    console.error('Video or canvas reference is missing')
+    return
+  }
 
   const video = videoRef.value
   const canvas = canvasRef.value
   const context = canvas.getContext('2d')
 
-  if (!context) return
+  if (!context) {
+    console.error('Could not get canvas context')
+    return
+  }
+
+  console.log('Video dimensions:', {
+    width: video.videoWidth,
+    height: video.videoHeight
+  })
 
   // Set canvas dimensions to match video
   canvas.width = video.videoWidth
@@ -166,8 +177,15 @@ const takePicture = () => {
 
   // Convert canvas to base64 image
   const base64Image = canvas.toDataURL('image/jpeg')
+  console.log('Image captured, length:', base64Image.length)
+  console.log('Image preview data:', base64Image.substring(0, 50) + '...') // Log first 50 chars of base64
+
   imagePreview.value = base64Image
   post.value.imageContent = base64Image.split(',')[1] // Remove data URL prefix
+
+  // Verify image preview was set
+  console.log('Image preview set:', !!imagePreview.value)
+  console.log('Image preview length:', imagePreview.value.length)
 
   // Stop the camera stream
   stopCamera()
@@ -303,6 +321,21 @@ onMounted(() => {
 onBeforeUnmount(() => {
   stopCamera()
 })
+
+const handleImageLoad = (event: Event) => {
+  console.log('Image loaded successfully')
+  const img = event.target as HTMLImageElement
+  console.log('Image natural dimensions:', {
+    width: img.naturalWidth,
+    height: img.naturalHeight
+  })
+}
+
+const handleImageError = (event: Event) => {
+  console.error('Error loading image')
+  const img = event.target as HTMLImageElement
+  console.error('Image failed to load')
+}
 </script>
 
 <style scoped>
@@ -360,19 +393,20 @@ onBeforeUnmount(() => {
   margin-bottom: 1.5rem;
   text-align: center;
   background: #000;
-  border-radius: 50%;
+  border-radius: 12px;
   overflow: hidden;
-  width: 300px;
-  height: 300px;
+  width: 100%;
+  max-width: 400px;
+  aspect-ratio: 4/3;
   margin: 0 auto 1.5rem;
+  position: relative;
 }
 
 .camera-preview {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: 50%;
-  transform: scaleX(-1); /* Mirror the preview for selfie */
+  transform: scaleX(-1);
 }
 
 .camera-canvas {
@@ -380,17 +414,21 @@ onBeforeUnmount(() => {
 }
 
 .image-preview {
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
+  background: #000;
+  border-radius: 12px;
   overflow: hidden;
-  border-radius: 50%;
 }
 
 .image-preview img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: 50%;
+  transform: scaleX(-1);
 }
 
 .camera-controls {
