@@ -22,6 +22,46 @@
               class="form-input"
             />
           </div>
+          
+          <div class="form-group">
+            <label class="toggle-label">
+              <input
+                type="checkbox"
+                v-model="isExclusive"
+                class="toggle-input"
+              />
+              <span class="toggle-text">Exclusive Group</span>
+            </label>
+          </div>
+
+          <div v-if="isExclusive" class="form-group">
+            <label>Allowed Users</label>
+            <div class="users-selection">
+              <div class="search-box">
+                <input
+                  type="text"
+                  v-model="userSearch"
+                  placeholder="Search users..."
+                  class="form-input"
+                  @input="filterUsers"
+                />
+              </div>
+              <div class="users-list">
+                <div v-for="user in filteredUsers" :key="user.id" class="user-item">
+                  <label class="user-checkbox">
+                    <input
+                      type="checkbox"
+                      :value="user.id"
+                      v-model="selectedUsers"
+                    />
+                    <span class="user-name">{{ user.name }}</span>
+                    <span class="user-points">{{ user.point }} points</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <button type="submit" class="submit-btn" :disabled="loading">
             {{ loading ? 'Creating...' : 'Create Group' }}
           </button>
@@ -162,6 +202,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { groupService, type Group } from '@/services/group.service'
 import { challengeService, type CreateChallengeRequest } from '@/services/challenge.service'
+import axios from 'axios'
 
 const router = useRouter()
 const groupName = ref('')
@@ -185,6 +226,12 @@ const challengeEndTime = ref('')
 const loadingChallenge = ref(false)
 const challengeError = ref('')
 const challengeSuccess = ref('')
+
+const isExclusive = ref(false)
+const userSearch = ref('')
+const users = ref<any[]>([])
+const filteredUsers = ref<any[]>([])
+const selectedUsers = ref<string[]>([])
 
 const logout = () => {
   localStorage.removeItem('token')
@@ -214,15 +261,62 @@ const fetchGroups = async () => {
   }
 }
 
+const fetchUsers = async () => {
+  try {
+    const token = localStorage.getItem('token')
+    if (!token) return
+
+    const response = await axios.get('http://localhost:8090/api/v1/auth/users', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    users.value = response.data
+    filteredUsers.value = response.data
+  } catch (err) {
+    console.error('Error fetching users:', err)
+  }
+}
+
+const filterUsers = () => {
+  if (!userSearch.value) {
+    filteredUsers.value = users.value
+    return
+  }
+  
+  const searchTerm = userSearch.value.toLowerCase()
+  filteredUsers.value = users.value.filter(user => 
+    user.name.toLowerCase().includes(searchTerm)
+  )
+}
+
+const getSelectedUsernames = () => {
+  return users.value
+    .filter(user => selectedUsers.value.includes(user.id))
+    .map(user => user.name)
+}
+
 const createGroup = async () => {
   try {
     loading.value = true
     error.value = ''
     success.value = ''
 
-    await groupService.createGroup(groupName.value)
+    const groupData = {
+      name: groupName.value,
+      exclusive: isExclusive.value,
+      allowedUsernames: isExclusive.value ? getSelectedUsernames() : []
+    }
+
+    await groupService.createGroup(groupData)
     success.value = 'Group created successfully!'
+    
+    // Reset form
     groupName.value = ''
+    isExclusive.value = false
+    selectedUsers.value = []
+    userSearch.value = ''
+    
     await fetchGroups()
   } catch (err: any) {
     if (err.response?.data?.message) {
@@ -288,6 +382,7 @@ const createChallenge = async () => {
 
 onMounted(() => {
   fetchGroups()
+  fetchUsers()
 })
 </script>
 
@@ -581,5 +676,68 @@ select.form-input {
   background-position: right 0.75rem center;
   background-size: 1em;
   padding-right: 2.5rem;
+}
+
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.toggle-input {
+  width: 18px;
+  height: 18px;
+}
+
+.toggle-text {
+  color: #fff;
+  font-weight: 500;
+}
+
+.users-selection {
+  background: #000;
+  border: 1px solid #333;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.search-box {
+  padding: 0.5rem;
+  border-bottom: 1px solid #333;
+}
+
+.users-list {
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 0.5rem;
+}
+
+.user-item {
+  padding: 0.5rem;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.user-item:hover {
+  background: #1a1a1a;
+}
+
+.user-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  width: 100%;
+}
+
+.user-name {
+  color: #fff;
+  flex: 1;
+}
+
+.user-points {
+  color: #666;
+  font-size: 0.9rem;
 }
 </style> 
