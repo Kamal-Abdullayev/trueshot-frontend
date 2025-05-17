@@ -971,20 +971,20 @@ const fetchGroups = async () => {
       }
     })
     console.log('Other groups response:', allGroupsResponse.data)
-    
+
     // Filter exclusive groups
     const currentUserId = JSON.parse(localStorage.getItem('user') || '{}').userId
-    exclusiveGroups.value = allGroupsResponse.data.filter((group: Group) => 
-      group.exclusive && 
+    exclusiveGroups.value = allGroupsResponse.data.filter((group: Group) =>
+      group.exclusive &&
       group.allowedUsers?.some(user => user.id === currentUserId)
     )
-    
+
     // Filter out exclusive groups from otherGroups
-    otherGroups.value = allGroupsResponse.data.filter((group: Group) => 
-      !group.exclusive || 
+    otherGroups.value = allGroupsResponse.data.filter((group: Group) =>
+      !group.exclusive ||
       !group.allowedUsers?.some(user => user.id === currentUserId)
     )
-    
+
     console.log('Other groups after assignment:', otherGroups.value)
   } catch (err) {
     console.error('Error fetching groups:', err)
@@ -1718,6 +1718,15 @@ onUnmounted(() => {
   border-radius: 50%;
   transform: scaleX(-1); /* Mirror the preview for selfie */
   margin: 0 auto;
+  overflow: hidden; /* Add this to ensure the image stays within the circular boundary */
+}
+
+.camera-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  transform: scaleX(-1); /* Mirror the image for selfie */
 }
 
 .camera-canvas {
@@ -1756,6 +1765,18 @@ onUnmounted(() => {
   justify-content: center;
   overflow: hidden;
   margin: 0 auto;
+}
+
+.camera-button .camera-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  transform: scaleX(-1);
+}
+
+.camera-button .camera-canvas {
+  display: none;
 }
 
 .camera-controls {
