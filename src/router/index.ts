@@ -10,6 +10,7 @@ import CalendarView from '../views/CalendarView.vue'
 import NotificationsView from '../views/NotificationsView.vue'
 import GroupDetailsView from '../views/GroupDetailsView.vue'
 import AdminView from '../views/AdminView.vue'
+import RewardsView from '../views/RewardsView.vue'
 import { useAuthStore } from '@/stores/auth'
 
 const router = createRouter({
@@ -86,6 +87,12 @@ const router = createRouter({
       name: 'admin',
       component: AdminView,
       meta: { requiresAuth: true, requiresAdmin: true }
+    },
+    {
+      path: '/rewards',
+      name: 'rewards',
+      component: RewardsView,
+      meta: { requiresAuth: true }
     }
   ],
 })

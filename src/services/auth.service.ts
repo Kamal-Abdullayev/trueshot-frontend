@@ -40,17 +40,19 @@ export const authService = {
         throw new Error('Failed to decode token');
       }
 
-      // Check if user is admin based on username
-      const isAdmin = decodedToken.sub === 'admin';
+      // Get roles from token
+      const roles = decodedToken.roles || [];
+      const isAdmin = roles.includes('ROLE_ADMIN');
+      console.log('User roles:', roles);
       console.log('Is admin:', isAdmin);
 
-      // Return the token and user object with the userId from the token
+      // Return the token and user object with the userId from the token claims
       return {
         token,
         user: {
           userId: decodedToken.userId,
           name: decodedToken.sub,
-          roles: isAdmin ? ['ROLE_ADMIN'] : ['USER'],
+          roles: roles,
           isAdmin,
           following: [],
           followers: []

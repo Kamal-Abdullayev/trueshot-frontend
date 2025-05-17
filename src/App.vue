@@ -64,6 +64,13 @@ const logout = async () => {
               Notifications
             </router-link>
 
+            <router-link
+              to="/rewards"
+              class="nav-link"
+            >
+              Rewards
+            </router-link>
+
             <a href="#" @click.prevent="logout" class="nav-link logout">Logout</a>
           </template>
         </template>
