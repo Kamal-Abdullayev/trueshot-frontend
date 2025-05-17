@@ -21,27 +21,33 @@ export interface Group {
 }
 
 export const groupService = {
-  async createGroup(name: string) {
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error('No authentication token found');
-      }
+  async createGroup(data: { 
+    name: string, 
+    exclusive: boolean, 
+    allowedUsernames: string[] 
+  }) {
+    const token = localStorage.getItem('token')
+    if (!token) throw new Error('No authentication token found')
 
-      const response = await axios.post(
-        `${API_URL}/groups/create?name=${encodeURIComponent(name)}`,
-        {},
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
+    const params = new URLSearchParams()
+    params.append('name', data.name)
+    params.append('exclusive', data.exclusive.toString())
+    
+    // Add each username as a separate parameter
+    data.allowedUsernames.forEach(username => {
+      params.append('allowedUsernames', username)
+    })
+
+    const response = await axios.post(
+      `http://localhost:8090/api/v1/groups/create?${params.toString()}`,
+      {},
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`
         }
-      );
-      return response.data;
-    } catch (error) {
-      console.error('Error creating group:', error);
-      throw error;
-    }
+      }
+    )
+    return response.data
   },
 
   async getGroups(): Promise<Group[]> {

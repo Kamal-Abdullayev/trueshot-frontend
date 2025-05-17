@@ -73,6 +73,8 @@
               <div class="group-details">
                 <span class="group-admin">Admin: {{ group.admin?.name || 'Unknown' }}</span>
                 <span class="group-members">Members: {{ group.userList?.length || 0 }}</span>
+                <span class="group-exclusive" v-if="group.exclusive">Exclusive Group</span>
+
               </div>
             </div>
             <div class="group-actions">
@@ -981,7 +983,7 @@ const fetchGroups = async () => {
 
     // Filter out exclusive groups from otherGroups
     otherGroups.value = allGroupsResponse.data.filter((group: Group) =>
-      !group.exclusive ||
+      !group.exclusive &&
       !group.allowedUsers?.some(user => user.id === currentUserId)
     )
 
