@@ -8,9 +8,6 @@ Trueshot is a social media application inspired by BeReal, emphasizing authentic
 
 The frontend is designed to interface seamlessly with the [Trueshot Backend](https://github.com/Kamal-Abdullayev/trueshot-backend), providing users with an intuitive interface to capture and share moments in real-time.
 
-## Customize configuration
-
-See [Vite Configuration Reference](https://vite.dev/config/).
 
 ## Project Setup
 
@@ -28,10 +25,4 @@ npm run dev
 
 ```sh
 npm run build
-```
-
-### Lint with [ESLint](https://eslint.org/)
-
-```sh
-npm run lint
 ```
